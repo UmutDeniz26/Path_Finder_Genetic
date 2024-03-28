@@ -4,7 +4,7 @@
 This project implements a genetic algorithm to visualize pathfinding in a game board environment using PyQt5. The genetic algorithm generates samples (individuals) that navigate from a start point to an end point on the game board while avoiding obstacles. 
 
 <p align="center">
-[Screencast from 28-03-2024 13:23:15.webm](https://github.com/UmutDeniz26/Path_Finder_Genetic/assets/76654674/abad2e32-1111-4bd6-b7e1-a629b4274758)
+  <img src="https://github.com/UmutDeniz26/Path_Finder_Genetic/assets/76654674/abad2e32-1111-4bd6-b7e1-a629b4274758">
 </p>
 
 
