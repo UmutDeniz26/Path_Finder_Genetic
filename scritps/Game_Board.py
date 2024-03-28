@@ -13,7 +13,7 @@ from scritps.Sample import Sample
 
 LEARNING_RATE = 0.1
 MUTATION_RATE = 0.1
-SELECT_PER_EPOCH = 50
+SELECT_PER_EPOCH = 10
 MULTIPLIER = 10
 
 class Game_Board(QGraphicsView):

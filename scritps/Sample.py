@@ -122,7 +122,6 @@ class Sample(QGraphicsItem):
         
         return {"control_history": self.control_history, "score": self.get_score(), "ID": self.ID}
     
-
 # Test the Sample class
 sample = Sample((700, 700))
 sample.print_features()
