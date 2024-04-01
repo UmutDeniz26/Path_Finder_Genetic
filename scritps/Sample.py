@@ -20,7 +20,8 @@ class Sample(QGraphicsItem):
         self.target_point = QPointF(self.board_width, self.board_height // 2)
         
         # Set the initial position of the sample
-        self.setPos(0, self.board_height // 2)
+        self.spawn_point = (0, self.board_height // 2)
+        self.setPos(self.spawn_point[0], self.spawn_point[1])
 
         # Initialization of counters & arrays
         self.controls = external_controls
@@ -37,14 +38,18 @@ class Sample(QGraphicsItem):
     
     # Print the features of the sample
     def print_features(self):
-        print(f"ID: {self.ID}, Speed: {self.speed}\nScore: {self.score},Position: ({self.x()}, {self.y()})")
+        print(f"\nID: {self.ID}, Speed: {self.speed}\nScore: {self.score},Position: ({self.x()}, {self.y()})")
 
+    def __str__(self):
+        self.print_features()
+        return ""
+    
     # Return the bounding rectangle of the sample
     def boundingRect(self):
         return QRectF(-self.size/2, -self.size/2, self.size, self.size)
 
     # Paint the sample
-    def paint(self, painter, option, widget):
+    def paint(self, painter):
         painter.setBrush(self.color)
         painter.drawEllipse(-self.size/2, -self.size/2, self.size, self.size)
 
@@ -93,7 +98,8 @@ class Sample(QGraphicsItem):
     def calculate_fitness(self, end_point):
         # Calculate the distance between the sample and the end point
         distance = math.sqrt(
-            self.x_axis_coefficient  * (self.x() - end_point.x())**2 + self.y_axis_coefficient * (self.y() - end_point.y())**2
+            self.x_axis_coefficient  * (self.x() - end_point.x())**2 +
+            self.y_axis_coefficient  * (self.y() - end_point.y())**2
         )
 
         # score=1/distance can be another option to calculate fitness
@@ -119,7 +125,6 @@ class Sample(QGraphicsItem):
         # Only meaningfull when fitness calculation is ( score += 1/distance )
         final_score_local = cummulative_score + last_score * 1000 
         self.set_score(final_score_local)
-        
         return {"control_history": self.control_history, "score": self.get_score(), "ID": self.ID}
     
 # Test the Sample class
@@ -127,8 +132,9 @@ sample = Sample((700, 700))
 sample.print_features()
 print(sample.get_control_history_and_final_score())
 
-# Test the Sample class with external controls
-sample = Sample((700, 700), external_controls=[0, 90, 180, 270])
-sample.print_features()
+sample.move()
 
+# Test the Sample class with external controls
+#sample = Sample((700, 700), external_controls=[0, 90, 180, 270])
+sample.print_features()
 print("The Sample class is working correctly")

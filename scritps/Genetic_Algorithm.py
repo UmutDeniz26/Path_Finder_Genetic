@@ -101,6 +101,7 @@ class Genetic_Algorithm:
                 return_data["score"] *= 100
                 return_data.update({"Status": "Reached the end"})                
             elif color == "Out of bounds":
+                return_data["score"] /= 10
                 return_data.update({"Status": "Out of bounds"})
             elif color == Qt.black:
                 return_data["score"] /= 10
@@ -109,33 +110,41 @@ class Genetic_Algorithm:
             self.evulation_results.append(return_data)
         
     def reset_model(self):
-        self.evulation_results.clear()
-        self.population.clear()
-        self.moves_container.clear()
-        self.sorted_moves_container.clear()
+        self.evulation_results.clear();self.population.clear()
+        self.moves_container.clear();self.sorted_moves_container.clear()
         self.sorted_evulation_results.clear()
         
+    # It creates the new generation's samples
+    def create_new_generation_samples(self,sorted_results):
+        for i in range(self.population_size):
+            # Prepare the sample
+            sample = Sample(self.board_size, self.sample_speed)
+            sample.controls = self.mutation(sorted_results[i % self.select_per_epoch]["control_history"])
+            
+            # Add the sample to the population
+            self.population.append(sample)
+        
     # It creates the new generation
-    def create_new_generation(self):
+    def prepare_next_generation(self):
         
         # If there is no result, create the initial generation
         if len(self.evulation_results) < self.select_per_epoch:
             self.evulation_results = self.initial_generation()
-
         sorted_results = self.get_sorted_evulation_results()
+        
+        # Update the moves container
         self.update_moves_container(sorted_results)
         self.sort_moves_container()
-
-        # Create new samples for the next generation {population_size} times
-        for i in range(self.population_size):
-            sample = Sample(self.board_size, self.sample_speed)
-            sample.controls = self.mutation(sorted_results[i % self.select_per_epoch]["control_history"])
-            
-            self.population.append(sample)
-            #self.scene().addItem(sample)
-
+        self.create_new_generation_samples(sorted_results)
 
         best_score = sorted_results[0]["score"]
+        self.no_change_counter = self.no_change_counter + 1 if best_score == self.hold_best_score else 0
+        self.hold_best_score = best_score
+        
+        self.print_epoch_summary(sorted_results, best_score)
+
+
+    def print_epoch_summary(self, sorted_results, best_score):
         ratio_success = len([result for result in sorted_results if result["Status"] == "Reached the end"]) / len(sorted_results)
         print(f"""
         STATISTICS:
@@ -143,12 +152,7 @@ class Genetic_Algorithm:
             NUMBER OF RESULTS: {len(self.evulation_results):7.1f} | NO CHANGE COUNTER: {self.no_change_counter:7.1f}
             RATIO OF SUCCESS : {ratio_success:7.2f} | AVERAGE SCORE    : {self.calculate_average_score():7.2f}
         """)
-        if best_score == self.hold_best_score:
-            self.no_change_counter += 1
-        else:
-            self.no_change_counter = 0
-        self.hold_best_score = best_score
-
+        
     def calculate_average_score(self):
         return sum([result["score"] for result in self.evulation_results]) / len(self.evulation_results)
             
@@ -204,7 +208,7 @@ def main():
         sample_speed=20
     )
 
-    model.create_new_generation()
+    model.prepare_next_generation()
     model.get_sorted_evulation_results()
     model.sort_moves_container()
 

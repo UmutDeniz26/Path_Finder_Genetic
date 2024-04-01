@@ -55,7 +55,7 @@ class Game_Board(QGraphicsView):
         self.model = Genetic_Algorithm(
             LEARNING_RATE, MUTATION_RATE, SELECT_PER_EPOCH, MULTIPLIER, board_size, self.sample_speed
         )
-        self.model.create_new_generation()
+        self.model.prepare_next_generation()
         self.init_screen()
 
     # Print the epoch information
@@ -88,7 +88,7 @@ class Game_Board(QGraphicsView):
                 LEARNING_RATE,MUTATION_RATE = self.model.change_parameters(LEARNING_RATE, MUTATION_RATE)
 
                 self.print_epoch_info()
-                self.model.create_new_generation()
+                self.model.prepare_next_generation()
                 return
                 
             for sample in self.model.get_population():
