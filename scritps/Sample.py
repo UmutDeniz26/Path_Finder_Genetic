@@ -48,8 +48,8 @@ class Sample(QGraphicsItem):
     def boundingRect(self):
         return QRectF(-self.size/2, -self.size/2, self.size, self.size)
 
-    # Paint the sample
-    def paint(self, painter):
+    # Paint the sample (Don't change its parameters)
+    def paint(self, painter, option, widget):
         painter.setBrush(self.color)
         painter.drawEllipse(-self.size/2, -self.size/2, self.size, self.size)
 
