@@ -71,7 +71,7 @@ class Game_Board():
             if len(self.model.get_population()) == 0:
                 if self.model.no_change_counter > 10:
                     self.model.change_parameters(
-                        self.model.learning_rate, self.model.learning_rate
+                        self.model.learning_rate, self.model.mutation_rate
                         )
 
                 self.model.prepare_next_generation()
