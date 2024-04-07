@@ -8,9 +8,10 @@ import os
 import pandas as pd
 sys.path.insert(0, "path_finder")
 
-import Genetic_Algorithm as gn
-import pandas_operations
-import Sample
+try:
+    import Genetic_Algorithm as gn
+except:
+    import scritps.Genetic_Algorithm as gn
 
 class Game_Board():
      
@@ -113,7 +114,7 @@ if __name__ == "__main__":
     #Test
     data_path = "log/results.hdf5" 
     modal = gn.Genetic_Algorithm(
-        learning_rate=0.1, mutation_rate=0.1, select_per_epoch=20, generation_multiplier=20, sample_speed=20,
+        learning_rate=0.1, mutation_rate=0.1, select_per_epoch=20, generation_multiplier=50, sample_speed=20,
         dataframe_path=data_path, save_flag= True, load_flag= False
     )
 

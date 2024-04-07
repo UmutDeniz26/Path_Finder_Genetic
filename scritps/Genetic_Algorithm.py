@@ -4,14 +4,18 @@ import sys
 import os
 import time
 import pandas as pd
-import Common
-import pandas_operations
 
 sys.path.insert(0, "path_finder")
 try:
     from scritps.Sample import Sample
+    import scritps.Common as Common
+    import scritps.pandas_operations as pandas_operations
+
 except:
     from Sample import *
+    import Common
+    import pandas_operations
+
 
 class Genetic_Algorithm:
     def __init__(
@@ -83,6 +87,9 @@ class Genetic_Algorithm:
                 "Status": row["Status"],
                 "control_history": row["control_history"],
             })
+        if self.learning_rate == 0.0:
+            self.evulation_results = [self.evulation_results[0]]
+                
         self.update_moves_container( self.get_sorted_evulation_results() )
         
         # Metadata operations
@@ -302,22 +309,7 @@ class Genetic_Algorithm:
 
         return self.sorted_moves_container
     
-def main():
-    model = Genetic_Algorithm(
-        learning_rate=0.1,
-        mutation_rate=0.1,
-        select_per_epoch=10,
-        generation_multiplier=10,
-        board_size=(700, 700),
-        sample_speed=20
-    )
-
-    model.prepare_next_generation()
-    model.get_sorted_evulation_results()
-    model.sort_moves_container()
-
-    print("The model is working correctly")
 
 if __name__ == "__main__":
     # Test the Genetic_Algorithm class
-    main()
+    pass
