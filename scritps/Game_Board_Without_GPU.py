@@ -113,23 +113,22 @@ if __name__ == "__main__":
     #Test
     data_path = "log/results.hdf5" 
     modal = gn.Genetic_Algorithm(
-        learning_rate=0.1, mutation_rate=0.1, select_per_epoch=10, generation_multiplier=50, sample_speed=20,
-        dataframe_path=data_path, save_flag= True, load_flag= True
+        learning_rate=0.1, mutation_rate=0.1, select_per_epoch=20, generation_multiplier=20, sample_speed=20,
+        dataframe_path=data_path, save_flag= True, load_flag= False
     )
 
     BOARD_SIZE = (700, 700)
 
-    obj_width = 200
-    obj_height = 400
-
-    default_object = {
-        "x": (BOARD_SIZE[0])//2-(obj_width//2),
-        "y": (BOARD_SIZE[1])//2-(obj_height//2),
-        "width": obj_width,
-        "height": obj_height
-    }
+    default_objects =  [
+        {'x': 146, 'y': 145, 'width': 424, 'height': 128},
+        {'x': 205, 'y': 406, 'width': 222, 'height': 245},
+        {'x': 309, 'y': 257, 'width': 40, 'height': 92},
+        {'x': 493, 'y': 321, 'width': 63, 'height': 174},
+        {'x': 584, 'y': 214, 'width': 43, 'height': 116},
+        {'x': 612, 'y': 308, 'width': 90, 'height': 30}
+    ]
 
     board = Game_Board(
         board_size=BOARD_SIZE, model=modal, 
-        sample_speed=20, obstacles=[default_object],
+        sample_speed=20, obstacles=default_objects,
     )

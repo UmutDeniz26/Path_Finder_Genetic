@@ -35,12 +35,6 @@ class Game_Board(QGraphicsView):
         self.frame_count = 0;self.epoch_count = 0
         self.population = []
         self.obstacles = obstacles
-        
-        #Default obstacle (50x50) in the middle
-        obj_width = 200;obj_height = 400
-        self.obstacles.append(QGraphicsRectItem(
-            (self.board_width)//2-(obj_width//2),
-            (self.board_height)//2-(obj_height//2),obj_width,obj_height))
 
         # Set the timer and the mouse tracking
         self.setMouseTracking(True)
@@ -180,6 +174,18 @@ class Game_Board(QGraphicsView):
             self.results = []
             self.model.reset_model()
 
+            #print all obstacles in form of default object dict:
+            print([{"x": int(obstacle.rect().x()), "y": int(obstacle.rect().y()), 
+                    "width": int(obstacle.rect().width()), "height": int(obstacle.rect().height())} 
+                    for obstacle in self.obstacles])
+
+
+
+def object_dist_to_Qt(object_list):
+    return_dist = []
+    for obj in object_list:
+        return_dist.append(QGraphicsRectItem(obj["x"], obj["y"], obj["width"], obj["height"]))
+    return return_dist
 
 if __name__ == "__main__":
 
@@ -193,17 +199,17 @@ if __name__ == "__main__":
 
     BOARD_SIZE = (700, 700)
 
-    obj_width = 200
-    obj_height = 400
-
-    default_object = QGraphicsRectItem(
-            (BOARD_SIZE[0])//2-(obj_width//2),
-            (BOARD_SIZE[1])//2-(obj_height//2),
-            obj_width,obj_height)
-
+    default_objects =  [
+        {'x': 146, 'y': 145, 'width': 424, 'height': 128},
+        {'x': 205, 'y': 406, 'width': 222, 'height': 245},
+        {'x': 309, 'y': 257, 'width': 40, 'height': 92},
+        {'x': 493, 'y': 321, 'width': 63, 'height': 174},
+        {'x': 584, 'y': 214, 'width': 43, 'height': 116},
+        {'x': 612, 'y': 308, 'width': 90, 'height': 30}
+    ]
     board = Game_Board(
         board_size=BOARD_SIZE, model=modal, 
-        sample_speed=20, obstacles=[default_object],
+        sample_speed=20, obstacles=object_dist_to_Qt(default_objects)
     )
 
     board.show()
