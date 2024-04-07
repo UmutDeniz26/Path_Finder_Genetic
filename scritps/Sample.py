@@ -105,24 +105,20 @@ class Sample(QGraphicsItem):
         # score=1/distance can be another option to calculate fitness
         score_local = 1 / distance
 
-        # Add living time to the score
-        score_local += (self.move_counter /1000)
-
         # Update score
-        self.set_score( self.get_score() + score_local )
+        self.set_score( score_local )
 
         # score_local and self.score !are differenet! if you use cummulative approach
-        return score_local
+        return self.get_score()
         
             
     # Return the control history and the final score of the sample
     def get_control_history_and_final_score(self):
         
         last_score = self.calculate_fitness( self.target_point )
-        cummulative_score = self.get_score()
-
+        
         # It would overwrite if fitness calculation is ( score = 1/distance )
         # Only meaningfull when fitness calculation is ( score += 1/distance )
-        final_score_local = cummulative_score + last_score * 1000 
-        self.set_score(final_score_local)
+        #final_score_local = cummulative_score + last_score * 1000 
+        #self.set_score(final_score_local)
         return {"control_history": self.control_history, "score": self.get_score(), "ID": self.ID}

@@ -11,14 +11,9 @@ sys.path.insert(0, "path_finder")
 from scritps.Genetic_Algorithm import Genetic_Algorithm
 from scritps.Sample import Sample
 
-LEARNING_RATE = 0.1
-MUTATION_RATE = 0.1
-SELECT_PER_EPOCH = 10
-MULTIPLIER = 10
-
 class Game_Board(QGraphicsView):
      
-    def __init__(self, board_size, population_size=(SELECT_PER_EPOCH*MULTIPLIER)):
+    def __init__(self, board_size, model, population_size, sample_speed):
         super().__init__()
 
         # Set the scene and the scene rectangle
@@ -37,12 +32,18 @@ class Game_Board(QGraphicsView):
         self.frame_count = 0;self.epoch_count = 0
         self.population = []
         self.obstacles = []
+        
+        #Default obstacle (50x50) in the middle
+        obj_width = 200;obj_height = 400
+        self.obstacles.append(QGraphicsRectItem(
+            (self.board_width)//2-(obj_width//2),
+            (self.board_height)//2-(obj_height//2),obj_width,obj_height))
 
         # Set the timer and the mouse tracking
         self.setMouseTracking(True)
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_samples)
-        self.timer.start(5)
+        self.timer.start(10)
 
         # Set the End Points
         self.init_end_points()
@@ -52,9 +53,11 @@ class Game_Board(QGraphicsView):
             (self.board_width - self.end_point[0])**2 + (self.board_height - self.end_point[1])**2
         )     
 
-        self.model = Genetic_Algorithm(
-            LEARNING_RATE, MUTATION_RATE, SELECT_PER_EPOCH, MULTIPLIER, board_object=self, sample_speed=self.sample_speed
-        )
+        # Upload board attributes to the model
+        self.model = model
+        self.model.board = self
+        self.model.assign_board_attributes()
+
         self.model.prepare_next_generation()
         self.init_screen()
         print("Game Board is initialized correctly")
@@ -65,18 +68,18 @@ class Game_Board(QGraphicsView):
         print(f"""      
         ===================================== Epoch: "{self.epoch_count} " =====================================
         CONSTANTS:
-            LEARNING_RATE   : {LEARNING_RATE:7.2f} | MUTATION_RATE: {MUTATION_RATE:7.2f} 
-            SELECT_PER_EPOCH: {SELECT_PER_EPOCH:7.1f} | MULTIPLIER   : {MULTIPLIER:7.1f}
+            LEARNING_RATE   : {self.model.learning_rate:7.2f} | MUTATION_RATE: {self.model.mutation_rate:7.2f} 
+            SELECT_PER_EPOCH: {self.model.select_per_epoch:7.1f} | MULTIPLIER   : {self.model.generate_multiplier:7.1f}
             SAMPLE_SPEED    : {self.sample_speed:7.1f} | BOARD_SIZE   : {self.board_width}x{self.board_height}
+            SAMPLE_COUNT    : {len(self.model.get_population()):7.1f} | NO CHANGE COUNTER: {self.model.no_change_counter:7.1f}
         """)
 
             
     def update_samples(self):
-        global MULTIPLIER, SELECT_PER_EPOCH, LEARNING_RATE, MUTATION_RATE
         self.frame_count += 1
 
         # If the frame count is greater than the reset limit, reset the samples
-        refresh_rate = 4 * self.distance_between_start_and_end / self.sample_speed
+        refresh_rate = 8 * self.distance_between_start_and_end / self.sample_speed
         if refresh_rate < self.frame_count:
             self.frame_count = 0
             self.model.reset_samples()
@@ -85,10 +88,11 @@ class Game_Board(QGraphicsView):
         if not self.paused:
             self.loop_count += 1
             if len(self.model.get_population()) == 0:
-                if self.model.no_change_counter > 20:
-                    LEARNING_RATE,MUTATION_RATE = self.model.change_parameters(LEARNING_RATE, MUTATION_RATE)
+                if self.model.no_change_counter > 10:
+                    self.model.change_parameters(
+                        self.model.learning_rate, self.model.learning_rate
+                    )
 
-                self.print_epoch_info() if self.loop_count % 10 + 5 == 0 else None
                 self.model.prepare_next_generation()
                 
                 return
@@ -124,10 +128,9 @@ class Game_Board(QGraphicsView):
             return "Out of bounds"
         else:
             for item in self.scene().items(QRectF(x, y, 1, 1)):
-                if isinstance(item, QGraphicsRectItem) and item == self.end_point_item:
-                    return Qt.green
-                elif isinstance(item, QGraphicsRectItem) and item in self.obstacles:
-                    return Qt.black
+                if isinstance(item, QGraphicsRectItem):
+                    # color = item.brush().color().name()
+                    return item.brush().color().name()
             return None
 
     def init_end_points(self):

@@ -1,19 +1,20 @@
 import numpy as np
 import random
 import sys
-import math
-from PyQt5.QtCore import Qt
 
 sys.path.insert(0, "path_finder")
-from scritps.Sample import Sample
+try:
+    from scritps.Sample import Sample
+except:
+    from Sample import *
 
 class Genetic_Algorithm:
-    def __init__(self, learning_rate, mutation_rate, select_per_epoch, generation_multiplier, board_object, sample_speed=20):
+    def __init__(self, learning_rate, mutation_rate, select_per_epoch, generation_multiplier, board_object=None, sample_speed=20):
 
         # The board size is the size of the game board
-        self.board = board_object
-        self.board_width, self.board_height = self.board.board_width, self.board.board_height
-        self.board_size = (self.board_width, self.board_height)
+        if board_object is not None:
+            self.board = board_object
+            self.assign_board_attributes()
         self.no_change_counter = 0; self.hold_best_score = 0
 
         # Population is the list of samples
@@ -31,6 +32,10 @@ class Genetic_Algorithm:
         # The mutation rate is the probability of a gene to be mutated
         self.mutation_rate = mutation_rate
 
+        # Hold the original values of the learning rate and the mutation rate
+        self.learning_rate_original = self.learning_rate
+        self.mutation_rate_original = self.mutation_rate
+
         # It selects best {select_per_epoch} samples from the previous generation
         self.select_per_epoch = select_per_epoch 
         
@@ -46,17 +51,27 @@ class Genetic_Algorithm:
         self.sorted_evulation_results = []
 
 
+    def assign_board_attributes(self):
+
+        self.board_width, self.board_height = self.board.board_width, self.board.board_height
+        self.board_size = (self.board_width, self.board_height)
+
     def change_parameters(self, learning_rate, mutation_rate):
     
         self.no_change_counter = 0
         if learning_rate is not None:
-            learning_rate = learning_rate + learning_rate * 0.01
+            learning_rate = learning_rate + learning_rate * 0.2
             self.learning_rate = learning_rate
+        
         if mutation_rate is not None:
-            mutation_rate = mutation_rate - mutation_rate * 0.01
+            mutation_rate = mutation_rate + mutation_rate * 0.2
             self.mutation_rate = mutation_rate
+        
+        if mutation_rate > 0.80:
+            self.mutation_rate = self.mutation_rate_original
 
-        return learning_rate, mutation_rate
+        if learning_rate > 0.80:
+            self.learning_rate = self.learning_rate_original
     
     def get_sorted_evulation_results(self):
         self.sorted_evulation_results = sorted(self.evulation_results, key=lambda x: x["score"], reverse=True)
@@ -97,15 +112,19 @@ class Genetic_Algorithm:
 
     def handle_status(self, sample, color):
         if color is not None:
+            
             return_data = self.kill_sample(sample)
-            if color == Qt.green:
-                return_data["score"] *= 100
-                return_data.update({"Status": "Reached the end"})                
+            
+            if color == "#00ff00":
+                return_data["score"] = 1000
+                return_data.update({"Status": "Reached the end"})
+                return_data["score"] += 1 / len(return_data["control_history"])
+                        
             elif color == "Out of bounds":
-                return_data["score"] /= 10
+                #return_data["score"] /= 10
                 return_data.update({"Status": "Out of bounds"})
-            elif color == Qt.black:
-                return_data["score"] /= 10
+            elif color == "#000000": 
+                #return_data["score"] /= 10
                 return_data.update({"Status": "Hit the obstacle"})
 
             self.evulation_results.append(return_data)
@@ -139,19 +158,27 @@ class Genetic_Algorithm:
         self.create_new_generation_samples(sorted_results)
 
         best_score = sorted_results[0]["score"]
-        self.no_change_counter = self.no_change_counter + 1 if best_score == self.hold_best_score else 0
+        if best_score == self.hold_best_score:
+            self.no_change_counter += 1
+        else:
+            self.no_change_counter = 0
+            self.learning_rate = self.learning_rate_original
+            self.mutation_rate = self.mutation_rate_original
+
         self.hold_best_score = best_score
         
-        self.print_epoch_summary(sorted_results, best_score) if self.board.loop_count % 10 + 5 == 0 else None
-
-
-    def print_epoch_summary(self, sorted_results, best_score):
+        self.board.print_epoch_info() if self.board.loop_count % 1 == 0 else None
+        self.print_epoch_summary(sorted_results) if self.board.loop_count % 1 == 0 else None
+        
+    def print_epoch_summary(self, sorted_results):
+        move_count_of_best = len(sorted_results[0]["control_history"])
         ratio_success = len([result for result in sorted_results if result["Status"] == "Reached the end"]) / len(sorted_results)
         print(f"""
         STATISTICS:
-            BEST SCORE       : {best_score:7.2f} | NUMBER OF SAMPLES: {len(self.population):7.1f} |
-            NUMBER OF RESULTS: {len(self.evulation_results):7.1f} | NO CHANGE COUNTER: {self.no_change_counter:7.1f}
-            RATIO OF SUCCESS : {ratio_success:7.2f} | AVERAGE SCORE    : {self.calculate_average_score():7.2f}
+            BEST SCORE       : {sorted_results[0]["score"]:10.4f} | NUMBER OF SAMPLES: {len(self.population):7.1f} |
+            NUMBER OF RESULTS: {len(self.evulation_results):10.1f} | NO CHANGE COUNTER: {self.no_change_counter:7.1f}
+            RATIO OF SUCCESS : {ratio_success:10.2f} | AVERAGE SCORE    : {self.calculate_average_score():7.2f}
+            MOVE COUNT OF BEST: {move_count_of_best:7.1f}
         """)
         
     def calculate_average_score(self):
