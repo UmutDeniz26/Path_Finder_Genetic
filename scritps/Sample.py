@@ -126,15 +126,3 @@ class Sample(QGraphicsItem):
         final_score_local = cummulative_score + last_score * 1000 
         self.set_score(final_score_local)
         return {"control_history": self.control_history, "score": self.get_score(), "ID": self.ID}
-    
-# Test the Sample class
-sample = Sample((700, 700))
-sample.print_features()
-print(sample.get_control_history_and_final_score())
-
-sample.move()
-
-# Test the Sample class with external controls
-#sample = Sample((700, 700), external_controls=[0, 90, 180, 270])
-sample.print_features()
-print("The Sample class is working correctly")

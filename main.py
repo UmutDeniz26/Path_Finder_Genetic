@@ -1,13 +1,10 @@
 import sys
 from PyQt5.QtWidgets import QApplication
-
-sys.path.insert(0, "path_finder")
 from scritps.Game_Board import Game_Board
 
 def main():
     app = QApplication(sys.argv)
-    BOARD_SIZE = (700, 700)
-    game_board = Game_Board(BOARD_SIZE)
+    game_board = Game_Board( board_size= (700, 700) )
     game_board.show()
     sys.exit(app.exec_())
 

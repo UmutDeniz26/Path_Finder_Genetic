@@ -53,10 +53,11 @@ class Game_Board(QGraphicsView):
         )     
 
         self.model = Genetic_Algorithm(
-            LEARNING_RATE, MUTATION_RATE, SELECT_PER_EPOCH, MULTIPLIER, board_size, self.sample_speed
+            LEARNING_RATE, MUTATION_RATE, SELECT_PER_EPOCH, MULTIPLIER, board_object=self, sample_speed=self.sample_speed
         )
         self.model.prepare_next_generation()
         self.init_screen()
+        print("Game Board is initialized correctly")
 
     # Print the epoch information
     def print_epoch_info(self):
@@ -75,8 +76,8 @@ class Game_Board(QGraphicsView):
         self.frame_count += 1
 
         # If the frame count is greater than the reset limit, reset the samples
-        reset_limit = 4 * self.distance_between_start_and_end / self.sample_speed
-        if reset_limit < self.frame_count:
+        refresh_rate = 4 * self.distance_between_start_and_end / self.sample_speed
+        if refresh_rate < self.frame_count:
             self.frame_count = 0
             self.model.reset_samples()
 
@@ -84,11 +85,12 @@ class Game_Board(QGraphicsView):
         if not self.paused:
             self.loop_count += 1
             if len(self.model.get_population()) == 0:
+                if self.model.no_change_counter > 20:
+                    LEARNING_RATE,MUTATION_RATE = self.model.change_parameters(LEARNING_RATE, MUTATION_RATE)
 
-                LEARNING_RATE,MUTATION_RATE = self.model.change_parameters(LEARNING_RATE, MUTATION_RATE)
-
-                self.print_epoch_info()
+                self.print_epoch_info() if self.loop_count % 10 + 5 == 0 else None
                 self.model.prepare_next_generation()
+                
                 return
                 
             for sample in self.model.get_population():
@@ -103,12 +105,13 @@ class Game_Board(QGraphicsView):
             self.scene().addItem(obstacle)
         for sample in self.model.get_population():
             self.scene().addItem(sample)
+            
     
     def render_screen(self, population):
         # Remove the previous samples
-        for item in self.scene().items():
-            if isinstance(item, Sample):
-                self.scene().removeItem(item)
+        samples_to_remove = [item for item in self.scene().items() if isinstance(item, Sample)]
+        for item in samples_to_remove:
+            self.scene().removeItem(item)
         
         # Add the new samples
         for sample in population:
@@ -138,6 +141,7 @@ class Game_Board(QGraphicsView):
                                      *self.base_size)
         self.scene().addItem(self.end_point_item)
 
+    # Key, mouse events
     def keyPressEvent(self, event):
         if event.key() in (Qt.Key_Return, Qt.Key_Enter):
             self.paused = not self.paused
@@ -170,4 +174,3 @@ class Game_Board(QGraphicsView):
             self.model.reset_model()
 
             
-

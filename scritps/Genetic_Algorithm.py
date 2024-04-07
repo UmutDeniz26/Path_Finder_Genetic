@@ -8,11 +8,12 @@ sys.path.insert(0, "path_finder")
 from scritps.Sample import Sample
 
 class Genetic_Algorithm:
-    def __init__(self, learning_rate, mutation_rate, select_per_epoch, generation_multiplier, board_size, sample_speed=20):
+    def __init__(self, learning_rate, mutation_rate, select_per_epoch, generation_multiplier, board_object, sample_speed=20):
 
         # The board size is the size of the game board
-        self.board_width, self.board_height = board_size
-        self.board_size = board_size
+        self.board = board_object
+        self.board_width, self.board_height = self.board.board_width, self.board.board_height
+        self.board_size = (self.board_width, self.board_height)
         self.no_change_counter = 0; self.hold_best_score = 0
 
         # Population is the list of samples
@@ -46,14 +47,14 @@ class Genetic_Algorithm:
 
 
     def change_parameters(self, learning_rate, mutation_rate):
-        if self.no_change_counter > 20:
-            self.no_change_counter = 0
-            if learning_rate is not None:
-                learning_rate = learning_rate + learning_rate * 0.01
-                self.learning_rate = learning_rate
-            if mutation_rate is not None:
-                mutation_rate = mutation_rate - mutation_rate * 0.01
-                self.mutation_rate = mutation_rate
+    
+        self.no_change_counter = 0
+        if learning_rate is not None:
+            learning_rate = learning_rate + learning_rate * 0.01
+            self.learning_rate = learning_rate
+        if mutation_rate is not None:
+            mutation_rate = mutation_rate - mutation_rate * 0.01
+            self.mutation_rate = mutation_rate
 
         return learning_rate, mutation_rate
     
@@ -141,7 +142,7 @@ class Genetic_Algorithm:
         self.no_change_counter = self.no_change_counter + 1 if best_score == self.hold_best_score else 0
         self.hold_best_score = best_score
         
-        self.print_epoch_summary(sorted_results, best_score)
+        self.print_epoch_summary(sorted_results, best_score) if self.board.loop_count % 10 + 5 == 0 else None
 
 
     def print_epoch_summary(self, sorted_results, best_score):
