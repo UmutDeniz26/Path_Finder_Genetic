@@ -8,12 +8,16 @@ from PyQt5.QtWidgets import QGraphicsView, QGraphicsScene, QApplication, QGraphi
 import time
 
 sys.path.insert(0, "path_finder")
-from scritps.Genetic_Algorithm import Genetic_Algorithm
-from scritps.Sample import Sample
+try:
+    from scritps.Genetic_Algorithm import Genetic_Algorithm
+    from scritps.Sample import Sample
+except:
+    from Genetic_Algorithm import *
+    from Sample import *
 
 class Game_Board(QGraphicsView):
      
-    def __init__(self, board_size, model, population_size, sample_speed):
+    def __init__(self, board_size, model, sample_speed, obstacles):
         super().__init__()
 
         # Set the scene and the scene rectangle
@@ -22,8 +26,7 @@ class Game_Board(QGraphicsView):
         
         # Essential attributes
         self.board_width, self.board_height = board_size
-        self.population_size = population_size
-        self.sample_speed = 20;self.loop_count = 0
+        self.sample_speed = sample_speed;self.loop_count = 0
 
         #Default choices
         self.current_obstacle = None;self.paused = False
@@ -31,7 +34,7 @@ class Game_Board(QGraphicsView):
         # Initialization of counters & arrays
         self.frame_count = 0;self.epoch_count = 0
         self.population = []
-        self.obstacles = []
+        self.obstacles = obstacles
         
         #Default obstacle (50x50) in the middle
         obj_width = 200;obj_height = 400
@@ -43,7 +46,7 @@ class Game_Board(QGraphicsView):
         self.setMouseTracking(True)
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_samples)
-        self.timer.start(10)
+        self.timer.start(20)
 
         # Set the End Points
         self.init_end_points()
@@ -113,10 +116,11 @@ class Game_Board(QGraphicsView):
     
     def render_screen(self, population):
         # Remove the previous samples
-        samples_to_remove = [item for item in self.scene().items() if isinstance(item, Sample)]
-        for item in samples_to_remove:
-            self.scene().removeItem(item)
-        
+        if len(self.scene().items()) > 0:
+            samples_to_remove = [item for item in self.scene().items() if isinstance(item, Sample)]
+            for item in samples_to_remove:
+                self.scene().removeItem(item)
+            
         # Add the new samples
         for sample in population:
             self.scene().addItem(sample)
@@ -176,4 +180,31 @@ class Game_Board(QGraphicsView):
             self.results = []
             self.model.reset_model()
 
-            
+
+if __name__ == "__main__":
+
+    app = QApplication(sys.argv)
+
+    data_path = "log/results.hdf5" 
+    modal = Genetic_Algorithm(
+        learning_rate=0.0, mutation_rate=0.0, select_per_epoch=10, generation_multiplier=10, sample_speed=20,
+        dataframe_path=data_path, save_flag=False, load_flag= True
+    )
+
+    BOARD_SIZE = (700, 700)
+
+    obj_width = 200
+    obj_height = 400
+
+    default_object = QGraphicsRectItem(
+            (BOARD_SIZE[0])//2-(obj_width//2),
+            (BOARD_SIZE[1])//2-(obj_height//2),
+            obj_width,obj_height)
+
+    board = Game_Board(
+        board_size=BOARD_SIZE, model=modal, 
+        sample_speed=20, obstacles=[default_object],
+    )
+
+    board.show()
+    sys.exit(app.exec_())

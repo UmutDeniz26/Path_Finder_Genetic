@@ -1,6 +1,11 @@
 import numpy as np
 import random
 import sys
+import os
+import time
+import pandas as pd
+import Common
+import pandas_operations
 
 sys.path.insert(0, "path_finder")
 try:
@@ -9,13 +14,17 @@ except:
     from Sample import *
 
 class Genetic_Algorithm:
-    def __init__(self, learning_rate, mutation_rate, select_per_epoch, generation_multiplier, board_object=None, sample_speed=20):
+    def __init__(
+            self, learning_rate, mutation_rate, select_per_epoch, 
+            generation_multiplier, board_object=None, sample_speed=20,
+            dataframe_path=None, save_flag = False, load_flag = True
+            ):
 
         # The board size is the size of the game board
         if board_object is not None:
             self.board = board_object
             self.assign_board_attributes()
-        self.no_change_counter = 0; self.hold_best_score = 0
+        self.no_change_counter = 0; self.hold_best_score = 0;self.epoch = 0
 
         # Population is the list of samples
         self.population = []
@@ -40,7 +49,7 @@ class Genetic_Algorithm:
         self.select_per_epoch = select_per_epoch 
         
         # It generates {select_per_epoch*multiplier} samples for the next generation
-        self.generate_multiplier = generation_multiplier 
+        self.generation_multiplier = generation_multiplier 
 
         # The moves container is a list of lists that contains the angles of the moves
         self.moves_container = [[]]
@@ -50,11 +59,45 @@ class Genetic_Algorithm:
         self.evulation_results = []
         self.sorted_evulation_results = []
 
+        # The dataframe path is the path of the dataframe
+        self.dataframe_path = dataframe_path
+        self.save_flag = save_flag
+        if dataframe_path is not None and os.path.exists(dataframe_path) and load_flag:
+            self.upload_dataframe()
 
+    def upload_dataframe(self):
+        if self.dataframe_path is None or not os.path.exists(self.dataframe_path):
+            print("The file is not found")
+            return
+        
+        result_pd, metadata = pandas_operations.load_dataframe_hdf5(
+            self.dataframe_path
+        )
+        
+        # Update the model due to the uploaded dataframe
+        self.reset_model()
+        for _, row in result_pd.iterrows():
+            self.evulation_results.append({
+                "ID": row["ID"],
+                "score": row["score"],
+                "Status": row["Status"],
+                "control_history": row["control_history"],
+            })
+        self.update_moves_container( self.get_sorted_evulation_results() )
+        
+        # Metadata operations
+        Common.print_dict(metadata)
+        self.epoch = int(metadata["EPOCH_COUNT"])
+
+        input("Press any key to continue...")
+            
+        
     def assign_board_attributes(self):
-
         self.board_width, self.board_height = self.board.board_width, self.board.board_height
         self.board_size = (self.board_width, self.board_height)
+
+    def get_dataframe(self):
+        return pd.DataFrame(self.sorted_evulation_results)
 
     def change_parameters(self, learning_rate, mutation_rate):
     
@@ -64,7 +107,7 @@ class Genetic_Algorithm:
             self.learning_rate = learning_rate
         
         if mutation_rate is not None:
-            mutation_rate = mutation_rate + mutation_rate * 0.2
+            mutation_rate = mutation_rate - mutation_rate * 0.2
             self.mutation_rate = mutation_rate
         
         if mutation_rate > 0.80:
@@ -80,6 +123,11 @@ class Genetic_Algorithm:
     def mutation(self, angles):
         # For each move, a random angle will be chosen
         for index,_ in enumerate(self.sorted_moves_container):
+            # if learning rate is 0 then dont select randomly, only select best ones
+            if self.learning_rate == 0.0 and index < len(angles):
+                angles = self.sorted_evulation_results[0]["control_history"]
+                break
+
             if index < len(angles):
                 angles[index] = np.random.choice(self.sorted_moves_container[index][0:self.select_per_epoch])["angle"]
         
@@ -106,13 +154,12 @@ class Genetic_Algorithm:
             "Status":"inital",
             "score": 0,
             "control_history": [random.uniform(0, 360) for i in range(
-                self.select_per_epoch * self.generate_multiplier
+                self.select_per_epoch * self.generation_multiplier
             )]
         } for _ in range(self.select_per_epoch)]
 
     def handle_status(self, sample, color):
         if color is not None:
-            
             return_data = self.kill_sample(sample)
             
             if color == "#00ff00":
@@ -121,12 +168,10 @@ class Genetic_Algorithm:
                 return_data["score"] += 1 / len(return_data["control_history"])
                         
             elif color == "Out of bounds":
-                #return_data["score"] /= 10
                 return_data.update({"Status": "Out of bounds"})
             elif color == "#000000": 
-                #return_data["score"] /= 10
                 return_data.update({"Status": "Hit the obstacle"})
-
+            
             self.evulation_results.append(return_data)
         
     def reset_model(self):
@@ -154,7 +199,6 @@ class Genetic_Algorithm:
         
         # Update the moves container
         self.update_moves_container(sorted_results)
-        self.sort_moves_container()
         self.create_new_generation_samples(sorted_results)
 
         best_score = sorted_results[0]["score"]
@@ -167,8 +211,27 @@ class Genetic_Algorithm:
 
         self.hold_best_score = best_score
         
-        self.board.print_epoch_info() if self.board.loop_count % 1 == 0 else None
-        self.print_epoch_summary(sorted_results) if self.board.loop_count % 1 == 0 else None
+
+        if  self.epoch % 20 == 0 and \
+            len(self.evulation_results) > 2*self.select_per_epoch*self.generation_multiplier and \
+            self.save_flag:
+            print("Saving the data");time.sleep(1)
+
+            metadata = {
+                "LEARNING_RATE": self.learning_rate,
+                "MUTATION_RATE": self.mutation_rate,
+                "SELECT_PER_EPOCH": self.select_per_epoch,
+                "MULTIPLIER": self.generation_multiplier,
+                "BOARD_SIZE": (self.board_width, self.board_height),
+                "EPOCH_COUNT": self.epoch,
+            }
+
+            pandas_operations.save_dataframe_hdf5(
+                self.get_dataframe(), save_lim=10000, path=self.dataframe_path, metadata=metadata
+            )
+
+        self.print_epoch_info() if self.epoch % 1 == 0 else None
+        self.print_epoch_summary(sorted_results) if self.epoch % 1 == 0 else None
         
     def print_epoch_summary(self, sorted_results):
         move_count_of_best = len(sorted_results[0]["control_history"])
@@ -181,6 +244,17 @@ class Genetic_Algorithm:
             MOVE COUNT OF BEST: {move_count_of_best:7.1f}
         """)
         
+    def print_epoch_info(self):
+        self.epoch += 1
+        print(f"""      
+        ===================================== Epoch: "{self.epoch} " =====================================
+        CONSTANTS:
+            LEARNING_RATE   : {self.learning_rate:7.2f} | MUTATION_RATE: {self.mutation_rate:7.2f} 
+            SELECT_PER_EPOCH: {self.select_per_epoch:7.1f} | MULTIPLIER   : {self.generation_multiplier:7.1f}
+            SAMPLE_SPEED    : {self.sample_speed:7.1f} | BOARD_SIZE   : {self.board_width}x{self.board_height}
+            SAMPLE_COUNT    : {len(self.get_population()):7.1f} | NO CHANGE COUNTER: {self.no_change_counter:7.1f}
+        """)
+
     def calculate_average_score(self):
         return sum([result["score"] for result in self.evulation_results]) / len(self.evulation_results)
             
@@ -216,6 +290,8 @@ class Genetic_Algorithm:
                 if index >= len(self.moves_container):
                     self.moves_container.append([])
                 self.moves_container[index].append({"angle":angle, "score":result["score"], "index":index})
+        
+        self.sort_moves_container()
 
     # This function sorts the moves container
     def sort_moves_container(self):
