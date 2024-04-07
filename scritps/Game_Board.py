@@ -41,6 +41,7 @@ class Game_Board(QGraphicsView):
         self.obstacles.append(QGraphicsRectItem(
             (self.board_width)//2-(obj_width//2),
             (self.board_height)//2-(obj_height//2),obj_width,obj_height))
+        self.refresh_rate = 8 * self.distance_between_start_and_end / self.sample_speed
 
         # Set the timer and the mouse tracking
         self.setMouseTracking(True)
@@ -82,8 +83,7 @@ class Game_Board(QGraphicsView):
         self.frame_count += 1
 
         # If the frame count is greater than the reset limit, reset the samples
-        refresh_rate = 8 * self.distance_between_start_and_end / self.sample_speed
-        if refresh_rate < self.frame_count:
+        if self.refresh_rate < self.frame_count:
             self.frame_count = 0
             self.model.reset_samples()
 
@@ -93,17 +93,17 @@ class Game_Board(QGraphicsView):
             if len(self.model.get_population()) == 0:
                 if self.model.no_change_counter > 10:
                     self.model.change_parameters(
-                        self.model.learning_rate, self.model.learning_rate
+                        self.model.learning_rate, self.model.mutation_rate
                     )
 
-                self.model.prepare_next_generation()
+                self.model.loop()
                 
                 return
                 
-            for sample in self.model.get_population():
+            for index,sample in enumerate(self.model.get_population()):
                 new_x, new_y = sample.move()   
                 new_position_color = self.get_color((new_x, new_y))
-                self.model.handle_status(sample, new_position_color)
+                self.model.handle_status(sample, new_position_color, index)
 
             self.render_screen(self.model.get_population())
                 
@@ -186,15 +186,19 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
 
     data_path = "log/results.hdf5" 
-    modal = Genetic_Algorithm(
-        learning_rate=0.0, mutation_rate=0.0, select_per_epoch=10, generation_multiplier=10, sample_speed=20,
-        dataframe_path=data_path, save_flag=False, load_flag= True
-    )
 
+    # if learning rate and mutation rate is 0.0, the model will be loaded from the given path (only show the results)
+    
     BOARD_SIZE = (700, 700)
 
     obj_width = 200
     obj_height = 400
+
+    modal = Genetic_Algorithm(
+        learning_rate=0.0, mutation_rate=0.0, select_per_epoch=10, generation_multiplier=10, sample_speed=20,
+        board_size = BOARD_SIZE, dataframe_path=data_path, save_flag=False, load_flag= True
+    )
+
 
     default_object = QGraphicsRectItem(
             (BOARD_SIZE[0])//2-(obj_width//2),

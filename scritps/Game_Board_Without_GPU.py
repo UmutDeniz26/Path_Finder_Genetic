@@ -33,7 +33,7 @@ class Game_Board():
         # Initialization of counters & arrays
         self.frame_count = 0;self.epoch_count = 0
         self.obstacles = obstacles
-        self.population = []
+        self.population = model.get_population()
         
         # Set the End Points
         self.init_end_points()
@@ -49,7 +49,7 @@ class Game_Board():
         self.model.board = self
         self.model.assign_board_attributes()
 
-        self.model.prepare_next_generation()
+        self.model.loop()
         self.init_screen()
         print("Game Board is initialized correctly")
         
@@ -59,30 +59,34 @@ class Game_Board():
     def update_samples(self):
         self.frame_count += 1
 
-        # If the frame count is greater than the reset limit, reset the samples
-        if self.refresh_rate < self.frame_count:
-            self.model.reset_samples();self.frame_count = 0
-            
-
         # If the number of samples is less than the number of samples, create a new generation
         if not self.paused:
             self.loop_count += 1
-            if len(self.model.get_population()) == 0:
+            # get the count of status= dead samples
+            #print(sum([1 for sample in self.model.get_population() if sample.status == "Alive"]))
+            if sum([1 for sample in self.model.get_population() if sample.status == "Alive"]) == 0 or \
+                self.refresh_rate < self.frame_count:
+                self.frame_count = 0
                 if self.model.no_change_counter > 10:
                     self.model.change_parameters(
-                        self.model.learning_rate, self.model.learning_rate
+                        self.model.learning_rate, self.model.mutation_rate
                         )
 
-                self.model.prepare_next_generation()
+                self.model.loop()
                 return
                 
-            for sample in self.model.get_population():
-                new_x, new_y = np.array(sample.move()).astype(int)
+            for index,sample in enumerate(self.model.get_population()):
+                new_x, new_y = sample.move()   
                 new_position_color = self.get_color((new_x, new_y))
-                self.model.handle_status(sample, new_position_color)
+                self.model.handle_status(sample, new_position_color, index, self.frame_count)
+            # If the frame count is greater than the reset limit, reset the samples
+            
+            if self.refresh_rate < self.frame_count:
+                self.model.reset_samples();self.frame_count = 0
     
+
     def get_color(self, position):
-        x, y = position
+        x, y = int(position[0]), int(position[1])
         if x < 0 or x >= self.board_width or y < 0 or y >= self.board_height:
             return "Out of bounds"
         else:
@@ -111,13 +115,14 @@ class Game_Board():
 
 if __name__ == "__main__":
     #Test
-    data_path = "log/results.hdf5" 
-    modal = gn.Genetic_Algorithm(
-        learning_rate=0.1, mutation_rate=0.1, select_per_epoch=10, generation_multiplier=50, sample_speed=20,
-        dataframe_path=data_path, save_flag= True, load_flag= True
-    )
 
     BOARD_SIZE = (700, 700)
+    data_path = "log/results.hdf5" 
+    modal = gn.Genetic_Algorithm(
+        learning_rate=0.1, mutation_rate=0.1, select_per_epoch=20, generation_multiplier=20, sample_speed=20,
+        board_size = BOARD_SIZE, dataframe_path=data_path, save_flag= False, load_flag= False
+    )
+
 
     obj_width = 200
     obj_height = 400

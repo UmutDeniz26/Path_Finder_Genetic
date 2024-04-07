@@ -43,7 +43,7 @@ def save_dataframe_hdf5(result_pd, save_lim, path, metadata):
     
     # Prepare the dataframe
     if 'Status' in result_pd.columns:
-        result_pd = result_pd.drop( result_pd[result_pd['Status'] == 'inital'].index)
+        result_pd = result_pd.drop( result_pd[result_pd['Status'] == 'initial'].index)
     
     # Save the dataframe
     store = pd.HDFStore(path)

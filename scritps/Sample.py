@@ -4,17 +4,19 @@ from PyQt5.QtGui import QTransform
 from PyQt5.QtWidgets import QGraphicsItem, QGraphicsEllipseItem
 from PyQt5.QtCore import QPointF
 import random
+import numpy as np
 
 id_counter = 0
 
 class Sample(QGraphicsItem):
-    def __init__(self, board_size, speed=20, external_controls=[]):
+    def __init__(self, board_size, speed=20, external_controls=np.array([])):
         super().__init__()
         
         # Essential attributes
         self.board_width, self.board_height = board_size
         self.color = Qt.blue;self.speed = speed;self.score = 0;self.size = 7
         self.x_axis_coefficient = 2;self.y_axis_coefficient = 1
+        self.status="Alive"
 
         # End point
         self.target_point = QPointF(self.board_width, self.board_height // 2)
@@ -25,8 +27,9 @@ class Sample(QGraphicsItem):
 
         # Initialization of counters & arrays
         self.controls = external_controls
-        self.control_history = []
+        self.control_history = external_controls
         self.move_counter = 0
+        self.final_move_cnt = 0
         
         self.assign_id()
 
@@ -38,7 +41,7 @@ class Sample(QGraphicsItem):
     
     # Print the features of the sample
     def print_features(self):
-        print(f"\nID: {self.ID}, Speed: {self.speed}\nScore: {self.score},Position: ({self.x()}, {self.y()})")
+        print(f"\nID: {self.ID}, Status: {self.status}, \nSpeed: {self.speed}\nScore: {self.score},\nPosition: ({self.x()}, {self.y()})")
 
     def __str__(self):
         self.print_features()
@@ -68,11 +71,12 @@ class Sample(QGraphicsItem):
     def handle_angle(self, move_counter):
 
         # If in control array there is a angle information use it, otherwise generate random one
-        if move_counter < len(self.controls):
+        if move_counter < len(self.controls) and self.controls[move_counter] != 0.0:
             angle = self.controls[move_counter]
         else:
             angle = random.uniform(0, 360)
-        self.control_history.append(angle)
+        
+        self.control_history[move_counter] = angle
         return angle
 
     # Returns new position of the sample and sets the new position
