@@ -8,8 +8,8 @@ from scritps.Genetic_Algorithm import Genetic_Algorithm
 
 def main():
     default_objects=[]    
-    #default_objects = [{'x': 238, 'y': 66, 'width': 87, 'height': 306}, {'x': 459, 'y': 312, 'width': 81, 'height': 383}, {'x': 167, 'y': 469, 'width': 539, 'height': 123}, {'x': 170, 'y': 7, 'width': 186, 'height': 88}, {'x': 143, 'y': 222, 'width': 144, 'height': 50}]
-    default_objects = [{"x":300, "y":300, "width":100, "height":100}]
+    default_objects = [{'x': 238, 'y': 66, 'width': 87, 'height': 306}, {'x': 459, 'y': 312, 'width': 81, 'height': 383}, {'x': 167, 'y': 469, 'width': 539, 'height': 123}, {'x': 170, 'y': 7, 'width': 186, 'height': 88}, {'x': 143, 'y': 222, 'width': 144, 'height': 50}]
+    #default_objects = [{"x":300, "y":300, "width":100, "height":100}]
 
     GPU = False
     BOARD_SIZE = (700, 700)
@@ -19,16 +19,16 @@ def main():
     load_flag = True if GPU else False    
     
     modal = Genetic_Algorithm(
-        learning_rate=0 if GPU else 0.1, 
-        mutation_rate=0 if GPU else 0.1,
-        select_per_epoch=1 if GPU else 50,
+        learning_rate = 0 if GPU else 0.1, 
+        mutation_rate = 0 if GPU else 0.1,
+        select_per_epoch=1 if GPU else 20,
         generation_multiplier=1 if GPU else 10,
-        save_flag= True,#save_flag,  
-        load_flag= False,#load_flag,
+        save_flag= save_flag,  
+        load_flag= load_flag,
         sample_speed=20,
         dataframe_path=data_path,
         exit_reached_flag=False,
-        not_learning_flag=False,
+        not_learning_flag= True if GPU else False
     )
 
     # If GPU is available

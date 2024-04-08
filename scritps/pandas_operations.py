@@ -12,14 +12,6 @@ def save_dataframe_hdf5(result_pd, save_lim, path, metadata):
         save_lim (int): The limit of the dataframe to be saved
         path (str): The path to save the dataframe
         metadata (dict): The metadata to be saved with the dataframe
-            metadata = {
-                "LEARNING_RATE": learning_rate(float)
-                "MUTATION_RATE": mutation_rate(float),
-                "SELECT_PER_EPOCH": select_per_epoch(int),
-                "MULTIPLIER": multiplier(int),
-                "BOARD_SIZE": board_size(tuple),
-                "EPOCH_COUNT": epoch_count(int),
-            }
 
     Returns:
         None
@@ -43,7 +35,7 @@ def save_dataframe_hdf5(result_pd, save_lim, path, metadata):
     
     # Prepare the dataframe
     if 'Status' in result_pd.columns:
-        result_pd = result_pd.drop( result_pd[result_pd['Status'] == 'inital'].index)
+        result_pd = result_pd.drop( result_pd[result_pd['status'] == 'inital'].index)
     
     # Save the dataframe
     store = pd.HDFStore(path)

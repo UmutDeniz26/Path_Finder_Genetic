@@ -59,31 +59,29 @@ class Game_Board(QGraphicsView):
         print("Game Board is initialized correctly")
         
     def update_samples(self):
-        self.frame_count += 1
 
         # If the frame count is greater than the reset limit, reset the samples
         refresh_rate = 8 * self.distance_between_start_and_end / self.model.sample_speed
         if refresh_rate < self.frame_count:
             self.frame_count = 0
             self.model.reset_samples()
+        living_samples = [ elem for elem in self.model.get_population() if elem.status=="Alive" ]
 
         # If the number of samples is less than the number of samples, create a new generation
         if not self.paused:
             self.loop_count += 1
-            if len(self.model.get_population()) == 0 or \
-            (self.model.learning_rate == 0 and self.move_cnt==len(self.model.evulation_results[0]["control_history"])):
+            if len(living_samples) == 0:
                 self.frame_count = 0
-
                 if self.model.learning_rate == 0:
                     self.model.population = []
                     best_sample = Sample(
                         board_size        = self.board_size, 
                         speed             = self.model.sample_speed,
-                        external_controls = self.model.evulation_results[0]["control_history"]
+                        external_controls = self.model.evulation_results[0]["controls"]
                     )
                     print("\n------------------\n, Len of the control history: ",
-                        len(self.model.evulation_results[0]["control_history"])," Last move cnt:",self.move_cnt,"\n")
-                    print(self.model.evulation_results[0]["control_history"],"\n\n")
+                        len(self.model.evulation_results[0]["controls"])," Last move cnt:",self.move_cnt,"\n")
+                    print(self.model.evulation_results[0]["controls"],"\n\n")
                     self.move_cnt=0
 
                     best_sample.set_score(self.model.evulation_results[0]["score"])
@@ -92,13 +90,14 @@ class Game_Board(QGraphicsView):
                     self.model.prepare_next_generation()
                 return
             
-            for sample in self.model.get_population():
+            for sample in living_samples:
                 new_x, new_y = sample.move()   
                 new_position_color = self.get_color((new_x, new_y))
                 self.model.handle_status(sample, new_position_color)
                 print("(",new_x, new_y,"),",end=" ")
                 self.move_cnt += 1
                 
+            self.frame_count += 1
             self.render_screen(self.model.get_population())
                 
     def init_screen(self):
