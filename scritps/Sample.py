@@ -4,13 +4,13 @@ from PyQt5.QtGui import QTransform
 from PyQt5.QtWidgets import QGraphicsItem, QGraphicsEllipseItem
 from PyQt5.QtCore import QPointF
 import random
+import numpy as np
 
 id_counter = 0
 
 class Sample(QGraphicsItem):
     def __init__( self, board_size, speed=20,
-                external_controls=[], init_control_mode="rand", 
-                max_control_length=100
+                external_controls=[]
             ):
         super().__init__()
         
@@ -36,8 +36,7 @@ class Sample(QGraphicsItem):
         if len(external_controls) != 0:
             self.controls = external_controls
         else:
-            self.set_controls(
-                assign_mode=init_control_mode, control_count=max_control_length)
+            self.controls = []
 
         self.assign_id()
 
@@ -55,7 +54,7 @@ class Sample(QGraphicsItem):
         self.setPos(self.spawn_point[0], self.spawn_point[1])
         self.position_history.clear()
 
-        if len(external_controls) != 0:
+        if len(external_controls) != 0 or assign_mode == "copy":
             self.controls = external_controls
         else:
             if assign_mode == "rand":
@@ -64,8 +63,6 @@ class Sample(QGraphicsItem):
                 self.controls = [0 for i in range(control_count)]
             elif assign_mode == "empty":
                 self.controls = []
-            elif assign_mode == "copy":
-                raise ValueError("External controls are empty")
             else:
                 raise ValueError("Unknown assign_mode")
     
@@ -95,8 +92,6 @@ class Sample(QGraphicsItem):
 
     # Setters and getters for the score
     def set_score(self, score):
-        if self.ID == 0:
-            print()
         self.score = score
     def get_score(self):
         return self.score
@@ -117,8 +112,8 @@ class Sample(QGraphicsItem):
             self.set_score(0)
 
         # Get the angle of the next move
-        if self.move_counter >= len(self.controls):
-            self.controls.append(random.uniform(0, 360))
+        while self.move_counter >= len(self.controls):
+            self.controls = np.append(self.controls, random.uniform(0, 360))
         angle = self.controls[self.get_and_increase_move_counter()]
         
         # Calculate the new position of the sample

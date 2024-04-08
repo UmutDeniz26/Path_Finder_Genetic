@@ -101,13 +101,68 @@ class Genetic_Algorithm:
         self.mutation_rate = self.mutation_rate_original if mutation_rate < 0.01 else mutation_rate
         self.learning_rate = self.learning_rate_original if learning_rate > 0.80 else learning_rate
 
+    
+    # It creates the new generation
+    def model_loop(self):
+        # If there is no result, create the initial generation
+        if len(self.evulation_results) < self.select_per_epoch:
+            self.initial_generation()
+        self.sort_evulation_results()
+
+        # Updates population with the new generation
+        self.create_new_generation_samples()
+
+        best_score = self.evulation_results[0]["score"]
+        if best_score == self.hold_best_score:
+            self.no_change_counter += 1
+        else:
+            self.no_change_counter = 0
+            self.learning_rate = self.learning_rate_original
+            self.mutation_rate = self.mutation_rate_original
+        self.hold_best_score = best_score
+
+        if self.no_change_counter > 20:
+            self.change_parameters(
+                self.learning_rate, self.mutation_rate
+            )
+
+        if  self.epoch % 40 == 0 and self.save_flag and \
+            len(self.evulation_results) > 2*self.select_per_epoch*self.generation_multiplier:
+            
+            metadata = {
+                "LEARNING_RATE": self.learning_rate,"MUTATION_RATE": self.mutation_rate,
+                "SELECT_PER_EPOCH": self.select_per_epoch,"MULTIPLIER": self.generation_multiplier,
+                "BOARD_SIZE": (self.board_width, self.board_height),"EPOCH_COUNT": self.epoch,
+            }
+
+            # save the dataframe
+            pandas_operations.save_dataframe_hdf5(
+                self.get_dataframe(), save_lim=10000, path=self.dataframe_path, metadata=metadata
+            )
+            sys.exit(0) if self.evulation_results[0]["score"] > 1000 and self.exit_reached_flag else None
+
+        if self.evulation_results[0]["final_move_count"] < 10 and self.evulation_results[0]["score"] > 1000:
+            print()
+        
+        self.print_epoch_info() if self.epoch % 1 == 0 else None
+        self.print_epoch_summary() if self.epoch % 1 == 0 else None
+
     def mutation(self,angles_len):
+
+        if angles_len == 0:
+            return []
+
         # For each move, a random angle will be chosen
         self.sort_evulation_results()
         angles = np.zeros(angles_len, dtype=int)
-        for index in range(self.max_move_count):
+        for index in range(angles_len):
+            possible_angles = [ elem for elem in self.evulation_results[0:self.select_per_epoch] 
+                if len(elem["controls"]) > index ]
+            if len(possible_angles) == 0:
+                angles = angles[:index]
+                break
             angles[index] = np.random.choice(
-                    self.evulation_results[0:self.select_per_epoch]
+                    possible_angles
                 )["controls"][index]
 
         # If the model is not learning, the angles will be the best angles
@@ -130,8 +185,8 @@ class Genetic_Algorithm:
         for i in range(self.population_size):
             self.population.append(Sample(
                 self.board_size, 
-                self.sample_speed,
-                external_controls=[random.randint(0, 360) for j in range(self.max_move_count)]))
+                self.sample_speed
+            ))
 
         for sample in self.population:
             self.add_result_dict(
@@ -141,7 +196,7 @@ class Genetic_Algorithm:
         
     def handle_status(self, sample, color):
         if color is not None:
-            return_data = self.kill_sample(sample)
+            return_data = sample.kill_sample_get_score()
             
             if color == "#00ff00":
                 return_data["sample"].set_score(1000 + 1 / return_data["sample"].final_move_count)
@@ -194,61 +249,10 @@ class Genetic_Algorithm:
             self.population[index].set_status("Alive")
             self.population[index].set_score(0)
 
-    # It creates the new generation
-    def prepare_next_generation(self):
-        # If there is no result, create the initial generation
-        if len(self.evulation_results) < self.select_per_epoch:
-            self.initial_generation()
-        self.sort_evulation_results()
-
-        # Updates population with the new generation
-        self.create_new_generation_samples()
-
-        best_score = self.evulation_results[0]["score"]
-        if best_score == self.hold_best_score:
-            self.no_change_counter += 1
-        else:
-            self.no_change_counter = 0
-            self.learning_rate = self.learning_rate_original
-            self.mutation_rate = self.mutation_rate_original
-        self.hold_best_score = best_score
-
-        if self.no_change_counter > 20:
-            self.change_parameters(
-                self.learning_rate, self.mutation_rate
-            )
-
-        if  self.epoch % 40 == 0 and self.save_flag and \
-            len(self.evulation_results) > 2*self.select_per_epoch*self.generation_multiplier:
-            
-            metadata = {
-                "LEARNING_RATE": self.learning_rate,"MUTATION_RATE": self.mutation_rate,
-                "SELECT_PER_EPOCH": self.select_per_epoch,"MULTIPLIER": self.generation_multiplier,
-                "BOARD_SIZE": (self.board_width, self.board_height),"EPOCH_COUNT": self.epoch,
-            }
-
-            # save the dataframe
-            pandas_operations.save_dataframe_hdf5(
-                self.get_dataframe(), save_lim=10000, path=self.dataframe_path, metadata=metadata
-            )
-            sys.exit(0) if self.evulation_results[0]["score"] > 1000 and self.exit_reached_flag else None
-
-        if self.evulation_results[0]["final_move_count"] < 10 and self.evulation_results[0]["score"] > 1000:
-            print()
-        
-        self.print_epoch_info() if self.epoch % 1 == 0 else None
-        self.print_epoch_summary() if self.epoch % 1 == 0 else None
-
-    # Remove the sample from the scene and the samples list then return the data of the sample
-    def kill_sample(self, sample):
-        # Before removing the sample, get the control history of the sample
-        final_result = sample.kill_sample_get_score()
-        return final_result
-    
     # It kills the sample and returns the control history and the final score of the sample    
     def reset_samples(self):
         for sample in self.population:
-            final_result = self.kill_sample(sample)
+            final_result = sample.kill_sample_get_score()
             final_result.update({"status": "Reset"})
             self.add_result_dict(sample=final_result["sample"], status=final_result["status"])
 

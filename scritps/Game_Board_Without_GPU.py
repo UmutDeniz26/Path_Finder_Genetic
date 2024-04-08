@@ -39,7 +39,7 @@ class Game_Board():
         self.model.board = self
         self.model.assign_board_attributes()
 
-        self.model.prepare_next_generation() if self.model.learning_rate != 0 else None
+        self.model.model_loop() if self.model.learning_rate != 0 else None
         self.refresh_rate = 8 * self.distance_between_start_and_end / self.model.sample_speed
         
         print("Game Board is initialized correctly")
@@ -73,7 +73,7 @@ class Game_Board():
                 self.move_cnt=0
                 self.model.population = [best_sample]
             else:
-                self.model.prepare_next_generation()
+                self.model.model_loop()
             return
         # If len of the population is greater than 0, move the samples
         else:

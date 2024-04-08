@@ -54,7 +54,7 @@ class Game_Board(QGraphicsView):
         self.model.board = self
         self.model.assign_board_attributes()
 
-        self.model.prepare_next_generation()
+        self.model.model_loop()
         self.init_screen()
         print("Game Board is initialized correctly")
         
@@ -87,7 +87,7 @@ class Game_Board(QGraphicsView):
                     best_sample.set_score(self.model.evulation_results[0]["score"])
                     self.model.population.append(best_sample)
                 else:
-                    self.model.prepare_next_generation()
+                    self.model.model_loop()
                 return
             
             for sample in living_samples:
