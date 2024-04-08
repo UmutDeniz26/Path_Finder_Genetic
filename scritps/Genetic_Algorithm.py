@@ -21,13 +21,15 @@ class Genetic_Algorithm:
     def __init__(
             self, learning_rate, mutation_rate, select_per_epoch, 
             generation_multiplier, board_object=None, sample_speed=20,
-            dataframe_path=None, save_flag = False, load_flag = True
+            dataframe_path=None, save_flag = False, load_flag = True,
+            exit_reached_flag = False
             ):
 
         # The board size is the size of the game board
         if board_object is not None:
-            self.board = board_object
-            self.assign_board_attributes()
+            self.board = board_object;self.assign_board_attributes()
+        
+        # The no change counter is the counter that holds the number of epochs that the best score does not change
         self.no_change_counter = 0; self.hold_best_score = 0;self.epoch = 0
 
         # Population is the list of samples
@@ -66,6 +68,7 @@ class Genetic_Algorithm:
         # The dataframe path is the path of the dataframe
         self.dataframe_path = dataframe_path
         self.save_flag = save_flag
+        self.exit_reached_flag = exit_reached_flag
         if dataframe_path is not None and os.path.exists(dataframe_path) and load_flag:
             self.upload_dataframe()
 
@@ -117,7 +120,7 @@ class Genetic_Algorithm:
             mutation_rate = mutation_rate - mutation_rate * 0.2
             self.mutation_rate = mutation_rate
         
-        if mutation_rate > 0.80:
+        if mutation_rate < 0.01:
             self.mutation_rate = self.mutation_rate_original
 
         if learning_rate > 0.80:
@@ -128,6 +131,10 @@ class Genetic_Algorithm:
         return self.sorted_evulation_results
 
     def mutation(self, angles):
+
+        #opt1
+        """
+        """
         # For each move, a random angle will be chosen
         for index,_ in enumerate(self.sorted_moves_container):
             # if learning rate is 0 then dont select randomly, only select best ones
@@ -138,6 +145,16 @@ class Genetic_Algorithm:
             if index < len(angles):
                 angles[index] = np.random.choice(self.sorted_moves_container[index][0:self.select_per_epoch])["angle"]
         
+        #opt2 sort and trim moves_container
+        """
+        for index, moves in enumerate(self.moves_container):
+            new_moves = sorted(moves, key = lambda x: x["score"], reverse=True)[0:self.select_per_epoch]
+            self.moves_container[index] = new_moves
+        np_moves_container = np.array(self.moves_container)
+        random_index = random.randint(0, np_moves_container.shape[1]-1)
+        angles = [elem["angle"] for elem in  np_moves_container[:, random_index]]
+        """
+
         # Convert the angles to a numpy array
         angles = np.array(angles)
 
@@ -151,7 +168,7 @@ class Genetic_Algorithm:
         mask = np.array(mask_coefficients) * np.array(mask_enable_filter)
 
         # The angles are mutated
-        mutated_angles = angles + angles * mask
+        mutated_angles = (angles + angles * mask).astype(int)
 
         return mutated_angles
     
@@ -160,7 +177,7 @@ class Genetic_Algorithm:
         return [{
             "Status":"inital",
             "score": 0,
-            "control_history": [random.uniform(0, 360) for i in range(
+            "control_history": [random.randint(0, 360) for i in range(
                 self.select_per_epoch * self.generation_multiplier
             )]
         } for _ in range(self.select_per_epoch)]
@@ -171,8 +188,8 @@ class Genetic_Algorithm:
             
             if color == "#00ff00":
                 return_data["score"] = 1000
-                return_data.update({"Status": "Reached the end"})
                 return_data["score"] += 1 / len(return_data["control_history"])
+                return_data.update({"Status": "Reached the end"})
                         
             elif color == "Out of bounds":
                 return_data.update({"Status": "Out of bounds"})
@@ -215,14 +232,17 @@ class Genetic_Algorithm:
             self.no_change_counter = 0
             self.learning_rate = self.learning_rate_original
             self.mutation_rate = self.mutation_rate_original
-
         self.hold_best_score = best_score
-        
 
-        if  self.epoch % 20 == 0 and \
+        if self.no_change_counter > 20:
+            self.change_parameters(
+                self.learning_rate, self.mutation_rate
+            )
+        
+        if  self.epoch % 40 == 0 and \
             len(self.evulation_results) > 2*self.select_per_epoch*self.generation_multiplier and \
             self.save_flag:
-            print("Saving the data");time.sleep(1)
+            print("Saving the data");#time.sleep(1)
 
             metadata = {
                 "LEARNING_RATE": self.learning_rate,
@@ -236,6 +256,9 @@ class Genetic_Algorithm:
             pandas_operations.save_dataframe_hdf5(
                 self.get_dataframe(), save_lim=10000, path=self.dataframe_path, metadata=metadata
             )
+            if sorted_results[0]["score"] > 1000 and self.exit_reached_flag:
+                print("The best score is reached")
+                sys.exit(0)
 
         self.print_epoch_info() if self.epoch % 1 == 0 else None
         self.print_epoch_summary(sorted_results) if self.epoch % 1 == 0 else None
@@ -245,10 +268,10 @@ class Genetic_Algorithm:
         ratio_success = len([result for result in sorted_results if result["Status"] == "Reached the end"]) / len(sorted_results)
         print(f"""
         STATISTICS:
-            BEST SCORE       : {sorted_results[0]["score"]:10.4f} | NUMBER OF SAMPLES: {len(self.population):7.1f} |
-            NUMBER OF RESULTS: {len(self.evulation_results):10.1f} | NO CHANGE COUNTER: {self.no_change_counter:7.1f}
-            RATIO OF SUCCESS : {ratio_success:10.2f} | AVERAGE SCORE    : {self.calculate_average_score():7.2f}
-            MOVE COUNT OF BEST: {move_count_of_best:7.1f}
+            BEST SCORE       : {sorted_results[0]["score"]:15.10f} | NUMBER OF SAMPLES: {len(self.population):7.1f} |
+            NUMBER OF RESULTS: {len(self.evulation_results):15.0f} | NO CHANGE COUNTER: {self.no_change_counter:7.0f}
+            RATIO OF SUCCESS : {ratio_success:15.11f} | AVERAGE SCORE    : {self.calculate_average_score():7.3f}
+            MOVE COUNT OF BEST: {move_count_of_best:15.0f} |
         """)
         
     def print_epoch_info(self):

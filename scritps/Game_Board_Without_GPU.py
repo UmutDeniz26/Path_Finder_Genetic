@@ -1,59 +1,48 @@
 import sys
-import random
-import time
 import numpy as np
-import math
-import os
 
 import pandas as pd
 sys.path.insert(0, "path_finder")
 
 try:
-    import Genetic_Algorithm as gn
+    from Sample import Sample
 except:
-    import scritps.Genetic_Algorithm as gn
+    from scritps.Sample import Sample
 
 class Game_Board():
      
-    def __init__(self, board_size, model, sample_speed, obstacles):
+    def __init__(self, board_size, model, obstacles):
         super().__init__()
         
         # Essential attributes
         self.board_width, self.board_height = board_size
+        self.board_size = board_size
 
         # 0 -> Empty, 1 -> Obstacle, 2 -> Start, 3 -> End
         self.board = np.zeros(shape=(self.board_width, self.board_height), dtype=np.int8)
         
-        # Set the sample speed and the loop count
-        self.sample_speed = sample_speed
-        self.loop_count = 0
-
-        # Default choices
-        self.current_obstacle = None;self.paused = False
-
         # Initialization of counters & arrays
-        self.frame_count = 0;self.epoch_count = 0
-        self.obstacles = obstacles
-        self.population = []
+        self.frame_count = 0; self.epoch_count = 0; self.loop_count = 0;self.move_cnt = 0
+        self.obstacles = obstacles; self.population = []
         
-        # Set the End Points
-        self.init_end_points()
-        
+        # Draw essential objects
+        self.draw_end_point()
+        self.draw_obstacles()
+
         # Initialize the end points and create the first generation
-        self.distance_between_start_and_end = math.sqrt(
-            (self.board_width - self.end_point[0])**2 + (self.board_height - self.end_point[1])**2
-        )     
-        self.refresh_rate = 8 * self.distance_between_start_and_end / self.sample_speed
+        self.distance_between_start_and_end = np.linalg.norm(
+            np.array(board_size) - np.array(self.end_point)
+        )
         
         # Upload board attributes to the model
         self.model = model
         self.model.board = self
         self.model.assign_board_attributes()
 
-        self.model.prepare_next_generation()
-        self.init_screen()
-        print("Game Board is initialized correctly")
+        self.model.prepare_next_generation() if self.model.learning_rate != 0 else None
+        self.refresh_rate = 8 * self.distance_between_start_and_end / self.model.sample_speed
         
+        print("Game Board is initialized correctly")
         while True:
             self.update_samples()
            
@@ -64,26 +53,39 @@ class Game_Board():
         if self.refresh_rate < self.frame_count:
             self.model.reset_samples();self.frame_count = 0
             
-
         # If the number of samples is less than the number of samples, create a new generation
-        if not self.paused:
-            self.loop_count += 1
-            if len(self.model.get_population()) == 0:
-                if self.model.no_change_counter > 10:
-                    self.model.change_parameters(
-                        self.model.learning_rate, self.model.mutation_rate
-                        )
+        if len(self.model.get_population()) == 0 or \
+            (self.model.learning_rate == 0 and self.move_cnt==len(self.model.evulation_results[0]["control_history"])):
+            self.frame_count = 0
+            if self.model.learning_rate == 0:
+                self.model.population = []
+                best_control_history = self.model.evulation_results[0]["control_history"]
+                best_sample = Sample(
+                    board_size        = self.board_size, 
+                    speed             = self.model.sample_speed,
+                    external_controls = best_control_history
+                )
+                print("\n------------------\n, Len of the control history: ",
+                    len(best_control_history)," Last move cnt:",self.move_cnt,"\n")
+                print(best_control_history,"\n\n")
+                self.move_cnt=0
 
+                best_sample.set_score(self.model.evulation_results[0]["score"])
+                self.model.population.append(best_sample)
+            else:
                 self.model.prepare_next_generation()
-                return
-                
+        
+        # If len of the population is greater than 0, move the samples
+        else:
             for sample in self.model.get_population():
-                new_x, new_y = np.array(sample.move()).astype(int)
-                new_position_color = self.get_color((new_x, new_y))
+                new_x, new_y = sample.move()
+                new_position_color = self.get_color(new_x, new_y)
                 self.model.handle_status(sample, new_position_color)
-    
-    def get_color(self, position):
-        x, y = position
+                print("(",new_x, new_y,"),",end=" ") if self.model.learning_rate == 0 else None
+                self.move_cnt += 1
+                
+        
+    def get_color(self, x, y):
         if x < 0 or x >= self.board_width or y < 0 or y >= self.board_height:
             return "Out of bounds"
         else:
@@ -96,14 +98,14 @@ class Game_Board():
                 return None
 
     # Inıtialize the screen (obstacles etc.)
-    def init_screen(self):
+    def draw_obstacles(self):
         for obstacle in self.obstacles:
             self.board[
                 obstacle["x"]:obstacle["x"]+obstacle["width"],
                 obstacle["y"]:obstacle["y"]+obstacle["height"]
-            ] = 1
+            ] = 1 # 1 means obstacle
             
-    def init_end_points(self):
+    def draw_end_point(self):
         self.base_size = (self.board_width // 20, self.board_height // 20)
         self.end_point = (self.board_width - self.board_width // 20, self.board_height // 2)
 
@@ -111,25 +113,4 @@ class Game_Board():
                    self.end_point[1] - self.base_size[1] // 2:self.end_point[1] + self.base_size[1] // 2] = 3
 
 if __name__ == "__main__":
-    #Test
-    data_path = "log/results.hdf5" 
-    modal = gn.Genetic_Algorithm(
-        learning_rate=0.1, mutation_rate=0.1, select_per_epoch=20, generation_multiplier=50, sample_speed=20,
-        dataframe_path=data_path, save_flag= True, load_flag= False
-    )
-
-    BOARD_SIZE = (700, 700)
-
-    default_objects =  [
-        {'x': 146, 'y': 145, 'width': 424, 'height': 128},
-        {'x': 205, 'y': 406, 'width': 222, 'height': 245},
-        {'x': 309, 'y': 257, 'width': 40, 'height': 92},
-        {'x': 493, 'y': 321, 'width': 63, 'height': 174},
-        {'x': 584, 'y': 214, 'width': 43, 'height': 116},
-        {'x': 612, 'y': 308, 'width': 90, 'height': 30}
-    ]
-
-    board = Game_Board(
-        board_size=BOARD_SIZE, model=modal, 
-        sample_speed=20, obstacles=default_objects,
-    )
+    pass

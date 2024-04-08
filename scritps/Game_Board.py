@@ -16,7 +16,7 @@ except:
 
 class Game_Board(QGraphicsView):
      
-    def __init__(self, board_size, model, sample_speed, obstacles):
+    def __init__(self, board_size, model, obstacles):
         super().__init__()
 
         # Set the scene and the scene rectangle
@@ -25,29 +25,29 @@ class Game_Board(QGraphicsView):
         
         # Essential attributes
         self.board_width, self.board_height = board_size
-        self.sample_speed = sample_speed;self.loop_count = 0
+        self.board_size = board_size
+        self.loop_count = 0
 
         #Default choices
         self.current_obstacle = None;self.paused = False
 
         # Initialization of counters & arrays
-        self.frame_count = 0;self.epoch_count = 0
-        self.population = []
-        self.obstacles = obstacles
+        self.frame_count = 0;self.epoch_count = 0;self.population = []
+        self.obstacles = obstacles;self.move_cnt = 0
 
         # Set the timer and the mouse tracking
         self.setMouseTracking(True)
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_samples)
-        self.timer.start(20)
+        self.timer.start(50)
 
         # Set the End Points
         self.init_end_points()
         
         # Initialize the end points and create the first generation
-        self.distance_between_start_and_end = math.sqrt(
-            (self.board_width - self.end_point[0])**2 + (self.board_height - self.end_point[1])**2
-        )     
+        self.distance_between_start_and_end = np.linalg.norm(
+            np.array(board_size) - np.array(self.end_point)
+        )
 
         # Upload board attributes to the model
         self.model = model
@@ -57,25 +57,12 @@ class Game_Board(QGraphicsView):
         self.model.prepare_next_generation()
         self.init_screen()
         print("Game Board is initialized correctly")
-
-    # Print the epoch information
-    def print_epoch_info(self):
-        self.epoch_count += 1
-        print(f"""      
-        ===================================== Epoch: "{self.epoch_count} " =====================================
-        CONSTANTS:
-            LEARNING_RATE   : {self.model.learning_rate:7.2f} | MUTATION_RATE: {self.model.mutation_rate:7.2f} 
-            SELECT_PER_EPOCH: {self.model.select_per_epoch:7.1f} | MULTIPLIER   : {self.model.generate_multiplier:7.1f}
-            SAMPLE_SPEED    : {self.sample_speed:7.1f} | BOARD_SIZE   : {self.board_width}x{self.board_height}
-            SAMPLE_COUNT    : {len(self.model.get_population()):7.1f} | NO CHANGE COUNTER: {self.model.no_change_counter:7.1f}
-        """)
-
-            
+        
     def update_samples(self):
         self.frame_count += 1
 
         # If the frame count is greater than the reset limit, reset the samples
-        refresh_rate = 8 * self.distance_between_start_and_end / self.sample_speed
+        refresh_rate = 8 * self.distance_between_start_and_end / self.model.sample_speed
         if refresh_rate < self.frame_count:
             self.frame_count = 0
             self.model.reset_samples()
@@ -83,21 +70,35 @@ class Game_Board(QGraphicsView):
         # If the number of samples is less than the number of samples, create a new generation
         if not self.paused:
             self.loop_count += 1
-            if len(self.model.get_population()) == 0:
-                if self.model.no_change_counter > 10:
-                    self.model.change_parameters(
-                        self.model.learning_rate, self.model.mutation_rate
-                    )
+            if len(self.model.get_population()) == 0 or \
+            (self.model.learning_rate == 0 and self.move_cnt==len(self.model.evulation_results[0]["control_history"])):
+                self.frame_count = 0
 
-                self.model.prepare_next_generation()
-                
+                if self.model.learning_rate == 0:
+                    self.model.population = []
+                    best_sample = Sample(
+                        board_size        = self.board_size, 
+                        speed             = self.model.sample_speed,
+                        external_controls = self.model.evulation_results[0]["control_history"]
+                    )
+                    print("\n------------------\n, Len of the control history: ",
+                        len(self.model.evulation_results[0]["control_history"])," Last move cnt:",self.move_cnt,"\n")
+                    print(self.model.evulation_results[0]["control_history"],"\n\n")
+                    self.move_cnt=0
+
+                    best_sample.set_score(self.model.evulation_results[0]["score"])
+                    self.model.population.append(best_sample)
+                else:
+                    self.model.prepare_next_generation()
                 return
-                
+            
             for sample in self.model.get_population():
                 new_x, new_y = sample.move()   
                 new_position_color = self.get_color((new_x, new_y))
                 self.model.handle_status(sample, new_position_color)
-
+                print("(",new_x, new_y,"),",end=" ")
+                self.move_cnt += 1
+                
             self.render_screen(self.model.get_population())
                 
     def init_screen(self):

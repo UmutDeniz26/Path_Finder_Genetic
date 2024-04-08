@@ -13,7 +13,7 @@ class Sample(QGraphicsItem):
         
         # Essential attributes
         self.board_width, self.board_height = board_size
-        self.color = Qt.blue;self.speed = speed;self.score = 0;self.size = 7
+        self.color = Qt.blue;self.speed = speed;self.score = 0;self.size = 1
         self.x_axis_coefficient = 2;self.y_axis_coefficient = 1
 
         # End point
@@ -84,8 +84,8 @@ class Sample(QGraphicsItem):
         # Calculate the new position of the sample
         dx = self.speed * math.cos(math.radians(angle))
         dy = self.speed * math.sin(math.radians(angle))
-        new_x = self.x() + dx
-        new_y = self.y() + dy
+        new_x = int( self.x() + dx )
+        new_y = int( self.y() + dy )
 
         # This is where we move the sample
         self.setPos(new_x, new_y)
@@ -103,7 +103,10 @@ class Sample(QGraphicsItem):
         )
 
         # score=1/distance can be another option to calculate fitness
-        score_local = 1 / distance
+        if distance == 0:
+            score_local = 1000
+        else:
+            score_local = 1 / distance
 
         # Update score
         self.set_score( score_local )

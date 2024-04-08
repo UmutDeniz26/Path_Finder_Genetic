@@ -6,10 +6,11 @@ from scritps.Game_Board_Without_GPU import Game_Board as Game_Board_Without_GPU
 from scritps.Genetic_Algorithm import Genetic_Algorithm
 
 
-def main():    
-    default_objects = [
-        {'x': 243, 'y': 166, 'width': 274, 'height': 109}, {'x': 160, 'y': 249, 'width': 48, 'height': 257}, {'x': 335, 'y': 429, 'width': 350, 'height': 49}, {'x': 354, 'y': 354, 'width': 55, 'height': 312}, {'x': 474, 'y': 15, 'width': 105, 'height': 373}
-    ]
+def main():
+    default_objects=[]    
+    #default_objects = [{'x': 238, 'y': 66, 'width': 87, 'height': 306}, {'x': 459, 'y': 312, 'width': 81, 'height': 383}, {'x': 167, 'y': 469, 'width': 539, 'height': 123}, {'x': 170, 'y': 7, 'width': 186, 'height': 88}, {'x': 143, 'y': 222, 'width': 144, 'height': 50}]
+    default_objects = [{"x":300, "y":300, "width":100, "height":100}]
+
     GPU = False
     BOARD_SIZE = (700, 700)
     data_path = "log/results.hdf5" 
@@ -20,12 +21,13 @@ def main():
     modal = Genetic_Algorithm(
         learning_rate=0 if GPU else 0.1, 
         mutation_rate=0 if GPU else 0.1,
-        select_per_epoch=1 if GPU else 20,
-        generation_multiplier=1 if GPU else 50,
-        save_flag= save_flag,  
-        load_flag= load_flag,
+        select_per_epoch=1 if GPU else 50,
+        generation_multiplier=1 if GPU else 10,
+        save_flag= True,#save_flag,  
+        load_flag= False,#load_flag,
         sample_speed=20,
-        dataframe_path=data_path
+        dataframe_path=data_path,
+        exit_reached_flag=False
     )
 
     # If GPU is available
@@ -33,7 +35,7 @@ def main():
         app = QApplication(sys.argv)
         board = Game_Board(
             board_size=BOARD_SIZE, model=modal, 
-            sample_speed=20, obstacles=[]#object_dist_to_Qt(default_objects)
+            obstacles=object_dist_to_Qt(default_objects)
         )
         board.show()
         sys.exit(app.exec_())
@@ -42,7 +44,7 @@ def main():
     else:
         board = Game_Board_Without_GPU(
             board_size=BOARD_SIZE, model=modal, 
-            sample_speed=20, obstacles=default_objects,
+            obstacles=default_objects,
         )
 
 def object_dist_to_Qt(object_list):
