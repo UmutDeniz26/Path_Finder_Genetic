@@ -52,32 +52,33 @@ class Game_Board():
         # If the frame count is greater than the reset limit, reset the samples
         if self.refresh_rate < self.frame_count:
             self.model.reset_samples();self.frame_count = 0
-            
+        
+        living_samples = [ elem for elem in self.model.get_population() if elem.status=="Alive" ]
+
         # If the number of samples is less than the number of samples, create a new generation
-        if len(self.model.get_population()) == 0 or \
-            (self.model.learning_rate == 0 and self.move_cnt==len(self.model.evulation_results[0]["control_history"])):
+        if len(living_samples) == 0:
             self.frame_count = 0
-            if self.model.learning_rate == 0:
-                self.model.population = []
-                best_control_history = self.model.evulation_results[0]["control_history"]
+            if self.model.not_learning_flag:
+                best_control_history = self.model.evulation_results[0]["sample"].controls
                 best_sample = Sample(
                     board_size        = self.board_size, 
                     speed             = self.model.sample_speed,
                     external_controls = best_control_history
                 )
-                print("\n------------------\n, Len of the control history: ",
-                    len(best_control_history)," Last move cnt:",self.move_cnt,"\n")
-                print(best_control_history,"\n\n")
-                self.move_cnt=0
-
                 best_sample.set_score(self.model.evulation_results[0]["score"])
-                self.model.population.append(best_sample)
+                
+                print("\n------------------\n, Len of the control history: ",
+                    len(best_control_history)," Last move cnt:",self.move_cnt,"\n",
+                    best_control_history,"\n\n"
+                )
+                self.move_cnt=0
+                self.model.population = [best_sample]
             else:
                 self.model.prepare_next_generation()
         
         # If len of the population is greater than 0, move the samples
         else:
-            for sample in self.model.get_population():
+            for sample in living_samples:
                 new_x, new_y = sample.move()
                 new_position_color = self.get_color(new_x, new_y)
                 self.model.handle_status(sample, new_position_color)

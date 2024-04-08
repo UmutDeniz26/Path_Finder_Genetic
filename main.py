@@ -27,7 +27,8 @@ def main():
         load_flag= False,#load_flag,
         sample_speed=20,
         dataframe_path=data_path,
-        exit_reached_flag=False
+        exit_reached_flag=False,
+        not_learning_flag=False,
     )
 
     # If GPU is available

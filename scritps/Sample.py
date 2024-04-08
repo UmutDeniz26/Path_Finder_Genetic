@@ -8,13 +8,14 @@ import random
 id_counter = 0
 
 class Sample(QGraphicsItem):
-    def __init__(self, board_size, speed=20, external_controls=[]):
+    def __init__( self, board_size, speed=20, external_controls=[], init_control_mode="rand", max_control_length=100 ):
         super().__init__()
         
         # Essential attributes
         self.board_width, self.board_height = board_size
         self.color = Qt.blue;self.speed = speed;self.score = 0;self.size = 1
         self.x_axis_coefficient = 2;self.y_axis_coefficient = 1
+        self.status = "Alive"
 
         # End point
         self.target_point = QPointF(self.board_width, self.board_height // 2)
@@ -24,7 +25,11 @@ class Sample(QGraphicsItem):
         self.setPos(self.spawn_point[0], self.spawn_point[1])
 
         # Initialization of counters & arrays
-        self.controls = external_controls
+        if len(external_controls) != 0:
+            self.controls = external_controls
+        else:
+            self.set_controls(assign_mode=init_control_mode, control_count=max_control_length)
+
         self.control_history = []
         self.move_counter = 0
         
@@ -35,6 +40,18 @@ class Sample(QGraphicsItem):
         global id_counter
         self.ID = id_counter
         id_counter += 1
+
+    # Control angles
+    def set_controls(self, assign_mode = "rand", external_controls = [], control_count = 100):
+        if len(external_controls) != 0:
+            self.controls = external_controls
+        else:
+            if assign_mode == "rand":
+                self.controls = [random.uniform(0, 360) for i in range(control_count)]
+            elif assign_mode == "zero":
+                self.controls = [0 for i in range(control_count)]
+            else:
+                raise ValueError("Unknown assign_mode")
     
     # Print the features of the sample
     def print_features(self):
@@ -124,4 +141,4 @@ class Sample(QGraphicsItem):
         # Only meaningfull when fitness calculation is ( score += 1/distance )
         #final_score_local = cummulative_score + last_score * 1000 
         #self.set_score(final_score_local)
-        return {"control_history": self.control_history, "score": self.get_score(), "ID": self.ID}
+        return {"sample": self, "score": self.get_score()}
