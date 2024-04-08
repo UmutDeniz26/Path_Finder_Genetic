@@ -23,7 +23,6 @@ class Sample(QGraphicsItem):
         self.score = 0
         self.move_counter = 0
         self.final_move_count=0
-        self.position_history = []
 
         # End point
         self.target_point = QPointF(self.board_width, self.board_height // 2)
@@ -37,23 +36,15 @@ class Sample(QGraphicsItem):
             self.controls = external_controls
         else:
             self.controls = []
-
         self.assign_id()
-
-    # It assings a id for each sample
-    def assign_id(self):
-        global id_counter
-        id_counter += 1
-        self.ID = id_counter
         
     # Control angles
     def set_controls(self, assign_mode = "rand", external_controls = [], control_count = 100):
         
-        self.set_score(0)
-        self.move_counter = 0
         self.setPos(self.spawn_point[0], self.spawn_point[1])
-        self.position_history.clear()
-
+        self.move_counter = 0
+        self.set_score(0)
+        
         if len(external_controls) != 0 or assign_mode == "copy":
             self.controls = external_controls
         else:
@@ -66,50 +57,8 @@ class Sample(QGraphicsItem):
             else:
                 raise ValueError("Unknown assign_mode")
     
-    # Print the features of the sample
-    def print_features(self):
-        for key, value in self.__dict__.items():
-            print(key, ":", value)
-        print("Current Position: ", self.x(), self.y())
-
-    def __str__(self):
-        self.print_features()
-        return ""
-    
-    # Return the bounding rectangle of the sample
-    def boundingRect(self):
-        return QRectF(-self.size/2, -self.size/2, self.size, self.size)
-
-    # Paint the sample (Don't change its parameters)
-    def paint(self, painter, option, widget):
-        painter.setBrush(self.color)
-        painter.drawEllipse(-self.size/2, -self.size/2, self.size, self.size)
-
-    # Increase the move counter and return the previous value
-    def get_and_increase_move_counter(self):
-        self.move_counter += 1
-        return self.move_counter - 1
-
-    # Setters and getters for the score
-    def set_score(self, score):
-        self.score = score
-    def get_score(self):
-        return self.score
-    def get_controls(self):
-        return self.controls
-    def get_move_counter(self):
-        return self.move_counter
-    def get_status(self):
-        return self.status
-    def set_status(self, status):
-        self.status = status
-    def get_ID(self):
-        return self.ID
-
     # Returns new position of the sample and sets the new position
     def move(self):
-        if self.move_counter == 0:
-            self.set_score(0)
 
         # Get the angle of the next move
         while self.move_counter >= len(self.controls):
@@ -122,7 +71,6 @@ class Sample(QGraphicsItem):
 
         # This is where we move the sample
         self.setPos(new_x, new_y)
-        self.position_history.append((new_x, new_y))
 
         # After every move, calculate the fitness of the sample for the target point
         # self.calculate_fitness( self.target_point )
@@ -149,9 +97,52 @@ class Sample(QGraphicsItem):
     def kill_sample_get_score(self):
         # Set the final move count and reset the move counter
         #self.final_move_count = self.move_counter + self.final_move_count
-        self.final_move_count = len(self.position_history)
-        self.move_counter = 0
+        self.final_move_count = self.move_counter
         
         self.set_score( self.calculate_fitness( self.target_point ) )
 
-        return {"sample": self, "score": self.get_score()}
+        return {"sample": self, "score": self.get_score(), "final_move_count": self.final_move_count}
+
+
+##############################################################################################################
+
+    # Setters and getters 
+    def set_score(self, score):
+        self.score = score
+    def get_score(self):
+        return self.score
+    def get_controls(self):
+        return self.controls
+    def get_move_counter(self):
+        return self.move_counter
+    def get_status(self):
+        return self.status
+    def set_status(self, status):
+        self.status = status
+    def get_ID(self):
+        return self.ID
+    # Increase the move counter and return the previous value
+    def get_and_increase_move_counter(self):
+        self.move_counter += 1
+        return self.move_counter - 1
+    
+    # Print the features of the sample
+    def print_features(self):
+        for key, value in self.__dict__.items():
+            print(key, ":", value)
+        print("Current Position: ", self.x(), self.y())
+    def __str__(self):
+        self.print_features()
+        return ""    
+        # Return the bounding rectangle of the sample
+    def boundingRect(self):
+        return QRectF(-self.size/2, -self.size/2, self.size, self.size)
+    # Paint the sample (Don't change its parameters)
+    def paint(self, painter, option, widget):
+        painter.setBrush(self.color)
+        painter.drawEllipse(-self.size/2, -self.size/2, self.size, self.size)
+    # It assings a id for each sample
+    def assign_id(self):
+        global id_counter
+        id_counter += 1
+        self.ID = id_counter

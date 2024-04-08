@@ -30,6 +30,7 @@ class Game_Board(QGraphicsView):
 
         #Default choices
         self.current_obstacle = None;self.paused = False
+        self.refresh_rate = 8 * self.distance_between_start_and_end / self.model.sample_speed
 
         # Initialization of counters & arrays
         self.frame_count = 0;self.epoch_count = 0;self.population = []
@@ -61,8 +62,7 @@ class Game_Board(QGraphicsView):
     def update_samples(self):
 
         # If the frame count is greater than the reset limit, reset the samples
-        refresh_rate = 8 * self.distance_between_start_and_end / self.model.sample_speed
-        if refresh_rate < self.frame_count:
+        if self.refresh_rate < self.frame_count:
             self.frame_count = 0
             self.model.reset_samples()
         living_samples = [ elem for elem in self.model.get_population() if elem.status=="Alive" ]

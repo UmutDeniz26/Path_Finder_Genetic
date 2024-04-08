@@ -17,13 +17,19 @@ class Genetic_Algorithm:
             self, learning_rate, mutation_rate, select_per_epoch, 
             generation_multiplier, board_object=None, sample_speed=20,
             dataframe_path=None, save_flag = False, load_flag = True,
-            exit_reached_flag = False, not_learning_flag = False
+            exit_reached_flag = False, not_learning_flag = False,
+            timer = None
             ):
 
         # The board size is the size of the game board
         if board_object is not None:
             self.board = board_object;self.assign_board_attributes()
         
+        self.timer = timer
+        if timer is not None:
+            self.timer.start_new_timer("Main Timer")
+            self.timer.start_new_timer("Initialization Timer")
+
         # The no change counter is the counter that holds the number of epochs that the best score does not change
         self.no_change_counter = 0; self.hold_best_score = 0;self.epoch = 0
 
@@ -46,6 +52,7 @@ class Genetic_Algorithm:
 
         # The population size is the number of samples in the population
         self.population_size = select_per_epoch * generation_multiplier
+        self.no_change_limit = int((200 / self.population_size) * 40) + 5
         
         # Population is the list of samples, evulation_results is the list of the results of the samples
         self.evulation_results = []
@@ -61,6 +68,8 @@ class Genetic_Algorithm:
         
         if os.path.exists(dataframe_path) and load_flag:
             self.upload_dataframe()
+        
+        timer.stop_timer("Initialization Timer") if timer is not None else None
 
     # Manipulates evulation_results due to the uploaded dataframe
     def upload_dataframe(self):
@@ -101,69 +110,64 @@ class Genetic_Algorithm:
         self.mutation_rate = self.mutation_rate_original if mutation_rate < 0.01 else mutation_rate
         self.learning_rate = self.learning_rate_original if learning_rate > 0.80 else learning_rate
 
-    
     # It creates the new generation
     def model_loop(self):
+        self.timer.start_new_timer("Model Loop Timer") if self.timer is not None else None
+
         # If there is no result, create the initial generation
-        if len(self.evulation_results) < self.select_per_epoch:
-            self.initial_generation()
+        self.initialize_generation() if len(self.population)==0 else None
+
+        # Sort the evulation results
         self.sort_evulation_results()
 
+        # Manipulates the learning rate and the mutation rate
+        self.handle_learning_parameters()
+
+        self.timer.start_new_timer("New Generation Timer") if self.timer is not None else None
         # Updates population with the new generation
         self.create_new_generation_samples()
-
-        best_score = self.evulation_results[0]["score"]
-        if best_score == self.hold_best_score:
-            self.no_change_counter += 1
-        else:
-            self.no_change_counter = 0
-            self.learning_rate = self.learning_rate_original
-            self.mutation_rate = self.mutation_rate_original
-        self.hold_best_score = best_score
-
-        if self.no_change_counter > 20:
-            self.change_parameters(
-                self.learning_rate, self.mutation_rate
-            )
-
-        if  self.epoch % 40 == 0 and self.save_flag and \
-            len(self.evulation_results) > 2*self.select_per_epoch*self.generation_multiplier:
-            
-            metadata = {
-                "LEARNING_RATE": self.learning_rate,"MUTATION_RATE": self.mutation_rate,
-                "SELECT_PER_EPOCH": self.select_per_epoch,"MULTIPLIER": self.generation_multiplier,
-                "BOARD_SIZE": (self.board_width, self.board_height),"EPOCH_COUNT": self.epoch,
-            }
-
-            # save the dataframe
-            pandas_operations.save_dataframe_hdf5(
-                self.get_dataframe(), save_lim=10000, path=self.dataframe_path, metadata=metadata
-            )
-            sys.exit(0) if self.evulation_results[0]["score"] > 1000 and self.exit_reached_flag else None
-
-        if self.evulation_results[0]["final_move_count"] < 10 and self.evulation_results[0]["score"] > 1000:
-            print()
+        self.timer.stop_timer("New Generation Timer") if self.timer is not None else None
+        
+        # Save the process managment
+        self.save_process_managment()
         
         self.print_epoch_info() if self.epoch % 1 == 0 else None
         self.print_epoch_summary() if self.epoch % 1 == 0 else None
 
-    def mutation(self,angles_len):
+        self.timer.stop_timer("Model Loop Timer") if self.timer is not None else None
+        self.timer.print_timers() if self.timer is not None else None
+        
+        self.timer.print_ratio("Main Timer", "New Generation Timer") if self.timer is not None else None
+        self.timer.print_ratio("Mutation Timer", "Mutation Timer Part 2") if self.timer is not None else None
 
+    # It creates the new generation's samples
+    def create_new_generation_samples(self):
+        for index,_ in enumerate(self.population):
+            # Get mutated angles which is created by the evulation_results dict
+            self.population[index].set_controls(
+                assign_mode="copy",
+                external_controls = self.mutation( len( self.population[index].controls ) )
+            )
+            self.population[index].set_status("Alive")
+            
+    def mutation(self,angles_len):
+        self.timer.start_new_timer("Mutation Timer") if self.timer is not None else None
+        self.timer.start_new_timer("Mutation Timer Part 2") if self.timer is not None else None
+        
+        # If there is no result, return an empty list
         if angles_len == 0:
             return []
 
         # For each move, a random angle will be chosen
         self.sort_evulation_results()
-        angles = np.zeros(angles_len, dtype=int)
-        for index in range(angles_len):
-            possible_angles = [ elem for elem in self.evulation_results[0:self.select_per_epoch] 
-                if len(elem["controls"]) > index ]
-            if len(possible_angles) == 0:
-                angles = angles[:index]
-                break
-            angles[index] = np.random.choice(
-                    possible_angles
-                )["controls"][index]
+        angles = []
+        self.timer.stop_timer("Mutation Timer Part 2") if self.timer is not None else None
+        try:
+            for index in range(angles_len):    
+                angles.append(
+                    np.random.choice(self.evulation_results[0:self.select_per_epoch])["controls"][index])
+        except:
+            pass
 
         # If the model is not learning, the angles will be the best angles
         angles = self.evulation_results[0]["controls"] if self.not_learning_flag else angles
@@ -177,23 +181,17 @@ class Genetic_Algorithm:
         # The angles are mutated
         mutated_angles = ( angles + angles * ( mask_coefficients * mask_enable_filter ) ).astype(int)
 
+        self.timer.stop_timer("Mutation Timer") if self.timer is not None else None
         return mutated_angles
     
     # Returns totally random angles for the first generation
-    def initial_generation(self):
-            
+    def initialize_generation(self):
         for i in range(self.population_size):
             self.population.append(Sample(
                 self.board_size, 
                 self.sample_speed
             ))
-
-        for sample in self.population:
-            self.add_result_dict(
-                sample= sample,
-                status= "initial"
-            )
-        
+ 
     def handle_status(self, sample, color):
         if color is not None:
             return_data = sample.kill_sample_get_score()
@@ -212,6 +210,38 @@ class Genetic_Algorithm:
                 status=return_data["status"]
             )
 
+    # Manipulates the learning rate and the mutation rate
+    def handle_learning_parameters(self):
+        best_score = self.evulation_results[0]["score"] if len(self.evulation_results) > 0 else 0
+        if best_score == self.hold_best_score:
+            self.no_change_counter += 1
+        else:
+            self.no_change_counter = 0
+            self.learning_rate, self.mutation_rate = self.learning_rate_original, self.mutation_rate_original
+        self.hold_best_score = best_score
+
+        if self.no_change_counter > self.no_change_limit:
+            self.change_parameters( self.learning_rate, self.mutation_rate )
+    
+    def save_process_managment(self):
+        if  self.epoch % (self.no_change_limit * 2) == 0 and self.save_flag and \
+            len(self.evulation_results) > 0: 
+            print("Saving the progress...");time.sleep(1)
+            # Create the metadata
+            metadata = {
+                "LEARNING_RATE": self.learning_rate,"MUTATION_RATE": self.mutation_rate,
+                "SELECT_PER_EPOCH": self.select_per_epoch,"MULTIPLIER": self.generation_multiplier,
+                "BOARD_SIZE": (self.board_width, self.board_height),"EPOCH_COUNT": self.epoch,
+            }
+
+            # Save the dataframe
+            pandas_operations.save_dataframe_hdf5(
+                self.get_dataframe(), save_lim=10000, path=self.dataframe_path, metadata=metadata
+            )
+
+            # Exit if the best score is greater than 1000 and the exit_reached_flag is True
+            sys.exit(0) if self.evulation_results[0]["score"] > 1000 and self.exit_reached_flag else None
+
     def reset_model(self):
         self.evulation_results.clear()
         self.reset_samples()
@@ -229,7 +259,6 @@ class Genetic_Algorithm:
                 "status": status,
                 "final_move_count": sample.final_move_count,
                 "ID": sample.ID,
-                "position_history": sample.position_history,
             })
         else:
             raise ValueError("Sample or status are None")
@@ -237,17 +266,7 @@ class Genetic_Algorithm:
 
     def sort_evulation_results(self):
         self.evulation_results.sort(key=lambda x: x["score"], reverse=True)
-
-    # It creates the new generation's samples
-    def create_new_generation_samples(self):
-        for index,samp in enumerate(self.population):
-            # Get mutated angles which is created by the evulation_results dict
-            self.population[index].set_controls(
-                assign_mode="copy",
-                external_controls = self.mutation( len( self.population[index].controls ) )
-            )
-            self.population[index].set_status("Alive")
-            self.population[index].set_score(0)
+        self.evulation_results = self.evulation_results[:self.select_per_epoch*self.generation_multiplier]
 
     # It kills the sample and returns the control history and the final score of the sample    
     def reset_samples(self):
@@ -272,6 +291,9 @@ class Genetic_Algorithm:
         return self.population
 
     def print_epoch_summary(self):
+        if len(self.evulation_results) == 0:
+            return
+
         move_count_of_best = self.evulation_results[0]["final_move_count"]
         ratio_success = len(
                 [result for result in self.evulation_results if result["status"] == "Reached the end"]
@@ -285,13 +307,15 @@ class Genetic_Algorithm:
         
     def print_epoch_info(self):
         self.epoch += 1
+
         print(f"""      
         ===================================== Epoch: "{self.epoch} " =====================================
         CONSTANTS:
-            LEARNING_RATE   : {self.learning_rate:7.2f} | MUTATION_RATE: {self.mutation_rate:7.2f} 
-            SELECT_PER_EPOCH: {self.select_per_epoch:7.1f} | MULTIPLIER   : {self.generation_multiplier:7.1f}
-            SAMPLE_SPEED    : {self.sample_speed:7.1f} | BOARD_SIZE   : {self.board_width}x{self.board_height}
-            SAMPLE_COUNT    : {len(self.get_population()):7.1f} | NO CHANGE COUNTER: {self.no_change_counter:7.1f}
+            LEARNING_RATE   : {self.learning_rate:7.2f} | MUTATION_RATE     : {self.mutation_rate:7.2f} 
+            SELECT_PER_EPOCH: {self.select_per_epoch:7.1f} | MULTIPLIER        : {self.generation_multiplier:7.1f}
+            SAMPLE_SPEED    : {self.sample_speed:7.1f} | BOARD_SIZE        : {self.board_width}x{self.board_height}
+            NO CHANGE LIMIT : { self.no_change_limit:7.1f} | NO CHANGE COUNTER : {self.no_change_counter:7.1f}
+            REFRESH RATE    : {self.board.refresh_rate if hasattr(self.board, "refresh_rate") else 0:7.1f}
         """)
 
 if __name__ == "__main__":

@@ -44,10 +44,12 @@ class Game_Board():
         
         print("Game Board is initialized correctly")
         while True:
+            self.model.timer.start_new_timer("Board Loop") if self.model.timer is not None else None
             self.update_samples()
-           
+            self.model.timer.stop_timer("Board Loop") if self.model.timer is not None else None
+        
     def update_samples(self):
-
+            
         # If the frame count is greater than the reset limit, reset the samples
         if self.refresh_rate < self.frame_count:
             self.model.reset_samples();self.frame_count = 0
@@ -77,13 +79,13 @@ class Game_Board():
             return
         # If len of the population is greater than 0, move the samples
         else:
+            
             for sample in living_samples:
                 new_x, new_y = sample.move()
                 new_position_color = self.get_color(new_x, new_y)
                 self.model.handle_status(sample, new_position_color)
                 print("(",new_x, new_y,"),",end=" ") if self.model.learning_rate == 0 else None
                 self.move_cnt += 1
-                
             self.frame_count += 1
         
     def get_color(self, x, y):
