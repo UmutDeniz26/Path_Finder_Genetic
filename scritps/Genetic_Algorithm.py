@@ -63,8 +63,6 @@ class Genetic_Algorithm:
         # Define a formatter
         formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         file_handler.setFormatter(formatter)
-
-        # Add the file handler to the logger
         self.logger.addHandler(file_handler)
 
         # Initialize attributes related to the board object
@@ -82,6 +80,9 @@ class Genetic_Algorithm:
         self.no_change_counter = 0
         self.hold_best_score = 0
         self.epoch = 0
+        self.loop_count = 0
+
+        # Set the model parameters
         self.sample_speed = sample_speed
         self.learning_rate = learning_rate
         self.mutation_rate = mutation_rate
@@ -93,6 +94,9 @@ class Genetic_Algorithm:
         self.select_per_epoch = select_per_epoch 
         self.generation_multiplier = generation_multiplier 
         self.population_size = select_per_epoch * generation_multiplier
+
+        # No change limit controls the change_parameters function
+        # Refresh rate is the time to reset the samples
         self.no_change_limit = int((200 / self.population_size) * 40) + 5
 
         # Initialize lists and flags
@@ -166,36 +170,47 @@ class Genetic_Algorithm:
         if learning_rate > 0.80:
             self.learning_rate = self.learning_rate_original
 
-
     # It creates the new generation
-    def model_loop(self):
+    def progress_to_next_epoch(self):
         self.timer.start_new_timer("Model Loop Timer") if self.timer is not None else None
 
         # If there is no result, create the initial generation
-        self.initialize_generation() if len(self.population)==0 else None
+        self.initialize_generation() if len(self.get_population())==0 else None
 
         # Sort the evulation results
         self.sort_evulation_results()
 
-        # Manipulates the learning rate and the mutation rate
-        self.handle_learning_parameters()
-
-        self.timer.start_new_timer("New Generation Timer") if self.timer is not None else None
         # Updates population with the new generation
+        self.timer.start_new_timer("New Generation Timer") if self.timer is not None else None
         self.create_new_generation_samples()
         self.timer.stop_timer("New Generation Timer") if self.timer is not None else None
         
-        # Save the process managment
+        # Manage saving process and learning parameters
         self.save_process_managment()
-        
+        self.handle_learning_parameters()
+
         self.print_epoch_info() if self.epoch % 1 == 0 else None
         self.print_epoch_summary() if self.epoch % 1 == 0 else None
 
-        self.timer.stop_timer("Model Loop Timer") if self.timer is not None else None
-        self.timer.print_timers() if self.timer is not None else None
-        
-        self.timer.print_ratio("Main Timer", "New Generation Timer") if self.timer is not None else None
-        self.timer.print_ratio("Mutation Timer", "Mutation Timer Part 2") if self.timer is not None else None
+        # Timer operations
+        if self.timer is not None:
+            self.timer.stop_timer("Model Loop Timer")
+            self.timer.print_timers()
+            self.timer.print_ratio("Main Timer", "New Generation Timer")
+            self.timer.print_ratio("Mutation Timer", "Mutation Timer Part 2")
+
+    def update_living_samples(self):
+        for sample in self.get_living_samples():
+            new_x, new_y = sample.move()
+            new_position_color = self.board.get_color(new_x, new_y)
+            self.handle_status(sample, new_position_color)
+            self.loop_count += 1
+
+    def reset_handler(self):
+        # If the frame count is greater than the reset limit, reset the samples
+        if self.loop_count > self.refresh_rate:
+            self.loop_count = 0
+            self.reset_samples()
 
     # It creates the new generation's samples
     def create_new_generation_samples(self):
@@ -330,8 +345,9 @@ class Genetic_Algorithm:
             final_result = sample.kill_sample_get_score()
             self.add_result_dict(sample=final_result["sample"], status="Reset")
 
-    def assign_board_attributes(self):
-        self.board_width, self.board_height = self.board.board_width, self.board.board_height
+    def assign_board_attributes(self, board):
+        self.refresh_rate = ( 2 * board.distance_between_start_and_end / self.sample_speed )
+        self.board_width, self.board_height = board.board_width, board.board_height
         self.max_move_count = self.board_width * 10 // self.sample_speed
         self.board_size = (self.board_width, self.board_height)
 
@@ -344,6 +360,9 @@ class Genetic_Algorithm:
             
     def get_population(self):
         return self.population
+
+    def get_living_samples(self):
+        return [elem for elem in self.get_population() if elem.status == "Alive"]
 
     def print_epoch_summary(self):
         if len(self.evulation_results) == 0:

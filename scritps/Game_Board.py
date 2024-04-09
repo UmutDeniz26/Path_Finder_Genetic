@@ -58,8 +58,7 @@ class Game_Board(QGraphicsView):
         self.model.board = self
         self.model.assign_board_attributes()
 
-        self.refresh_rate = ( 8 * self.distance_between_start_and_end / self.model.sample_speed ) * 20 / self.model.sample_speed
-        self.model.model_loop()
+        self.model.progress_to_next_epoch()
         self.init_screen()
         print("Game Board is initialized correctly")
         
@@ -97,7 +96,7 @@ class Game_Board(QGraphicsView):
                     best_sample.set_score(self.model.evulation_results[0]["score"])
                     self.model.population.append(best_sample)
                 else:
-                    self.model.model_loop()
+                    self.model.progress_to_next_epoch()
                 return
             
             for sample in living_samples:
