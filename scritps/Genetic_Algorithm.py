@@ -52,18 +52,9 @@ class Genetic_Algorithm:
             None
         """
 
-        # Initialize logging
-        self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(logging.DEBUG)  # Set log level as needed
-
-        # Define a file handler and set the log level
-        file_handler = logging.FileHandler('genetic_algorithm.log')
-        file_handler.setLevel(logging.DEBUG)  # Set log level as needed
-
-        # Define a formatter
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-        file_handler.setFormatter(formatter)
-        self.logger.addHandler(file_handler)
+        # Logging operations
+        logging.basicConfig(filename='log/app.log', filemode='w', format='%(asctime)s - %(levelname)s - %(message)s')
+        logging.getLogger().setLevel(logging.DEBUG)
 
         # Initialize attributes related to the board object
         if board_object is not None:
@@ -79,8 +70,8 @@ class Genetic_Algorithm:
         # Initialize counters and flags
         self.no_change_counter = 0
         self.hold_best_score = 0
-        self.epoch = 0
         self.loop_count = 0
+        self.epoch = 0
 
         # Set the model parameters
         self.sample_speed = sample_speed
@@ -113,63 +104,16 @@ class Genetic_Algorithm:
             self.upload_dataframe()
         
         # Stop initialization timer if timer is provided
-        if timer is not None:
-            self.timer.stop_timer("Initialization Timer")
-
-    # Manipulates evulation_results due to the uploaded dataframe
-    def upload_dataframe(self):
-        if not os.path.exists(self.dataframe_path):
-            message = "The specified file path does not exist."
-            self.logger.error(message)
-            Common.exit_with_print(message)
-        
-        try:
-            result_pd, metadata = pandas_operations.load_dataframe_hdf5(self.dataframe_path)
-        except Exception as e:
-            self.logger.error(f"Error loading dataframe: {e}")
-            Common.exit_with_print(e)
-
-        if result_pd is None or metadata is None:
-            message = "Failed to load dataframe or metadata."
-            self.logger.error(message)
-            Common.exit_with_print(message)
-            
-        # Update the model due to the uploaded dataframe ( Manipulate the evulation_results )
-        self.reset_model()
-        for _, row in result_pd.iterrows():
-            self.add_result_dict(row=row)
-        self.sort_evulation_results()
-        self.best_control = self.evulation_results[0]["controls"]
-        if self.not_learning_flag:
-            self.evulation_results = [self.evulation_results[0]]
-
-        # Metadata operations
-        Common.print_dict(metadata)
-        self.epoch = int(metadata["EPOCH_COUNT"]) + 1
-
-        input("Press any key to continue...")
-
-        self.logger.info("Dataframe uploaded successfully.")
-       
-    def change_parameters(self, learning_rate, mutation_rate):
-        self.no_change_counter = 0
-        if learning_rate is not None:
-            learning_rate = learning_rate + learning_rate * 0.2
-            self.learning_rate = learning_rate
-
-        if mutation_rate is not None:
-            mutation_rate = mutation_rate + mutation_rate * 0.2 * self.mutation_rate_sign
-            self.mutation_rate = mutation_rate
-
-        if (mutation_rate > 0.80 and self.mutation_rate_sign == 1) or\
-            (mutation_rate < 0.01 and self.mutation_rate_sign == -1):
+        self.timer.stop_timer("Initialization Timer") if timer is not None else None
     
-            self.mutation_rate = self.mutation_rate_original 
-            self.mutation_rate_sign *= -1
-
-        if learning_rate > 0.80:
-            self.learning_rate = self.learning_rate_original
-
+    # Each trigger of the main loop provides the working of the model
+    def main_loop(self):
+        #self.reset_handler()    
+        if len(self.get_living_samples()):
+            self.update_living_samples()
+        else:   
+            self.progress_to_next_epoch()
+            
     # It creates the new generation
     def progress_to_next_epoch(self):
         self.timer.start_new_timer("Model Loop Timer") if self.timer is not None else None
@@ -184,7 +128,7 @@ class Genetic_Algorithm:
         self.timer.start_new_timer("New Generation Timer") if self.timer is not None else None
         self.create_new_generation_samples()
         self.timer.stop_timer("New Generation Timer") if self.timer is not None else None
-        
+
         # Manage saving process and learning parameters
         self.save_process_managment()
         self.handle_learning_parameters()
@@ -202,7 +146,7 @@ class Genetic_Algorithm:
     def update_living_samples(self):
         for sample in self.get_living_samples():
             new_x, new_y = sample.move()
-            new_position_color = self.board.get_color(new_x, new_y)
+            new_position_color = self.board.get_color((new_x, new_y))
             self.handle_status(sample, new_position_color)
             self.loop_count += 1
 
@@ -295,7 +239,7 @@ class Genetic_Algorithm:
     def save_process_managment(self):
         if self.epoch % (self.no_change_limit * 2) == 0 and self.save_flag and \
             len(self.evulation_results) > 0:
-            self.logger.info("Saving the progress...")
+            logging.info("Saving the progress...")
             print("Saving the progress...")
             time.sleep(1)
             # Create the metadata
@@ -312,6 +256,41 @@ class Genetic_Algorithm:
 
             # Exit if the best score is greater than 1000 and the exit_reached_flag is True
             sys.exit(0) if self.evulation_results[0]["score"] > 1000 and self.exit_reached_flag else None
+
+    # Manipulates evulation_results due to the uploaded dataframe
+    def upload_dataframe(self):
+        if not os.path.exists(self.dataframe_path):
+            message = "The specified file path does not exist."
+            logging.error(message)
+            Common.exit_with_print(message)
+        
+        try:
+            result_pd, metadata = pandas_operations.load_dataframe_hdf5(self.dataframe_path)
+        except Exception as e:
+            logging.error(f"Error loading dataframe: {e}")
+            Common.exit_with_print(e)
+
+        if result_pd is None or metadata is None:
+            message = "Failed to load dataframe or metadata."
+            logging.error(message)
+            Common.exit_with_print(message)
+            
+        # Update the model due to the uploaded dataframe ( Manipulate the evulation_results )
+        self.reset_model()
+        for _, row in result_pd.iterrows():
+            self.add_result_dict(row=row)
+        self.sort_evulation_results()
+        self.best_control = self.evulation_results[0]["controls"]
+        if self.not_learning_flag:
+            self.evulation_results = [self.evulation_results[0]]
+
+        # Metadata operations
+        Common.print_dict(metadata)
+        self.epoch = int(metadata["EPOCH_COUNT"]) + 1
+
+        input("Press any key to continue...")
+
+        logging.info("Dataframe uploaded successfully.")
 
     def reset_model(self):
         self.evulation_results.clear()
@@ -339,6 +318,25 @@ class Genetic_Algorithm:
         self.evulation_results.sort(key=lambda x: x["score"], reverse=True)
         self.evulation_results = self.evulation_results[:self.select_per_epoch]
 
+    def change_parameters(self, learning_rate, mutation_rate):
+        self.no_change_counter = 0
+        if learning_rate is not None:
+            learning_rate = learning_rate + learning_rate * 0.2
+            self.learning_rate = learning_rate
+
+        if mutation_rate is not None:
+            mutation_rate = mutation_rate + mutation_rate * 0.2 * self.mutation_rate_sign
+            self.mutation_rate = mutation_rate
+
+        if (mutation_rate > 0.80 and self.mutation_rate_sign == 1) or\
+            (mutation_rate < 0.01 and self.mutation_rate_sign == -1):
+    
+            self.mutation_rate = self.mutation_rate_original 
+            self.mutation_rate_sign *= -1
+
+        if learning_rate > 0.80:
+            self.learning_rate = self.learning_rate_original
+
     # It kills the sample and returns the control history and the final score of the sample    
     def reset_samples(self):
         for sample in self.population:
@@ -346,7 +344,7 @@ class Genetic_Algorithm:
             self.add_result_dict(sample=final_result["sample"], status="Reset")
 
     def assign_board_attributes(self, board):
-        self.refresh_rate = ( 2 * board.distance_between_start_and_end / self.sample_speed )
+        self.refresh_rate = ( 8 * board.distance_between_start_and_end / self.sample_speed )
         self.board_width, self.board_height = board.board_width, board.board_height
         self.max_move_count = self.board_width * 10 // self.sample_speed
         self.board_size = (self.board_width, self.board_height)
@@ -389,9 +387,8 @@ class Genetic_Algorithm:
             SELECT_PER_EPOCH: {self.select_per_epoch:7.1f} | MULTIPLIER        : {self.generation_multiplier:7.1f}
             SAMPLE_SPEED    : {self.sample_speed:7.1f} | BOARD_SIZE        : {self.board_width}x{self.board_height}
             NO CHANGE LIMIT : { self.no_change_limit:7.1f} | NO CHANGE COUNTER : {self.no_change_counter:7.1f}
-            REFRESH RATE    : {self.board.refresh_rate if hasattr(self.board, "refresh_rate") else 0:7.1f} | SAMOLE COUNT      : {len(self.population):7.1f}
+            REFRESH RATE    : {self.refresh_rate:7.1f} | SAMOLE COUNT      : {len(self.population):7.1f}
         """)
 
 if __name__ == "__main__":
-    # Test the Genetic_Algorithm class
     pass

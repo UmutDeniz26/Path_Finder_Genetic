@@ -18,17 +18,17 @@ def main():
     BOARD_SIZE = (700, 700)
     data_path = "log/results.hdf5" 
     hybrid_flag = False
-    hybrid_interval = 80
+    hybrid_interval = 10    
 
     timer = Timer()
 
     save_flag = False if GPU else True
     load_flag = True if GPU else False    
     
-    modal = Genetic_Algorithm(
+    model = Genetic_Algorithm(
         learning_rate = 0 if GPU else 0.1, 
         mutation_rate = 0 if GPU else 0.1,
-        select_per_epoch=1 if GPU else 100,
+        select_per_epoch=1 if GPU else 1000,
         generation_multiplier=1 if GPU else 10,
         save_flag= save_flag,  
         load_flag= load_flag,
@@ -43,7 +43,7 @@ def main():
     if GPU:
         app = QApplication(sys.argv)
         board = Game_Board(
-            board_size=BOARD_SIZE, model=modal, 
+            board_size=BOARD_SIZE, model=model, 
             obstacles=object_dist_to_Qt(default_objects)
         )
         board.show()
@@ -52,36 +52,34 @@ def main():
     # If GPU is not available
     else:
         board = Game_Board_Without_GPU(
-            board_size=BOARD_SIZE, model=modal, 
+            board_size=BOARD_SIZE, model=model, 
             obstacles=default_objects,
         )
 
         if hybrid_flag:
             app = QApplication(sys.argv)
+            
             board_GPU = Game_Board(
-                board_size=BOARD_SIZE, model=modal, 
                 obstacles=object_dist_to_Qt(default_objects),
-                timer=timer, hybrid_interval = hybrid_interval//8
-            )
-        
+                hybrid_interval = hybrid_interval,
+                board_size=BOARD_SIZE, 
+                model=model, 
+                timer=timer
+            )        
 
             timer.start_new_timer("with-GPU")
             timer.start_new_timer("non-GPU")    
             while True:
                 timer_non_GPU_index = timer.get_timer_index("non-GPU")
                 timer.reset_timer("non-GPU")
-                while True:
-                    board.update_samples()
+                timer.update_timers()
+                while timer.timers[timer_non_GPU_index]["current"] < hybrid_interval:
+                    model.main_loop()
                     timer.update_timers()
-                    if timer.timers[timer_non_GPU_index]["current"] > hybrid_interval:
-                        break
-                print("non-GPU is finished")
-                time.sleep(1)
                 
                 timer.reset_timer("with-GPU")
                 board_GPU.show();app.exec_()
-                print("with-GPU is finished")
-                time.sleep(1)
+                
         else:
             while True:
                 board.update_samples()

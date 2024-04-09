@@ -36,7 +36,7 @@ class Game_Board(QGraphicsView):
         self.current_obstacle = None;self.paused = False
 
         # Initialization of counters & arrays
-        self.frame_count = 0;self.epoch_count = 0;self.population = []
+        self.epoch_count = 0;self.population = []
         self.obstacles = obstacles;self.move_cnt = 0
 
         # Set the timer and the mouse tracking
@@ -56,59 +56,26 @@ class Game_Board(QGraphicsView):
         # Upload board attributes to the model
         self.model = model
         self.model.board = self
-        self.model.assign_board_attributes()
+        self.model.assign_board_attributes( self )
 
         self.model.progress_to_next_epoch()
         self.init_screen()
         print("Game Board is initialized correctly")
         
     def update_samples(self):
+        # If the hybrid interval is reached, quit the application
         if hasattr(self, "mytimer"):
-            if self.mytimer is not None:
-                timer_with_GPU_index = self.mytimer.get_timer_index("with-GPU")
-                self.mytimer.update_timers()
-                if self.mytimer.timers[timer_with_GPU_index]["current"] > self.hybrid_interval:
-                    QApplication.quit()
-
-        # If the frame count is greater than the reset limit, reset the samples
-        if self.refresh_rate < self.frame_count:
-            self.frame_count = 0
-            self.model.reset_samples()
-        living_samples = [ elem for elem in self.model.get_population() if elem.status=="Alive" ]
-
+            self.mytimer.update_timers()
+            timer_with_GPU_index = self.mytimer.get_timer_index("with-GPU")
+            if self.mytimer.timers[timer_with_GPU_index]["current"] > self.hybrid_interval:
+                QApplication.quit()
+        
         # If the number of samples is less than the number of samples, create a new generation
-        if not self.paused:
-            self.loop_count += 1
-            if len(living_samples) == 0:
-                self.frame_count = 0
-                if self.model.learning_rate == 0:
-                    self.model.population = []
-                    best_sample = Sample(
-                        board_size        = self.board_size, 
-                        speed             = self.model.sample_speed,
-                        external_controls = self.model.evulation_results[0]["controls"]
-                    )
-                    print("\n------------------\n, Len of the control history: ",
-                        len(self.model.evulation_results[0]["controls"])," Last move cnt:",self.move_cnt,"\n")
-                    print(self.model.evulation_results[0]["controls"],"\n\n")
-                    self.move_cnt=0
-
-                    best_sample.set_score(self.model.evulation_results[0]["score"])
-                    self.model.population.append(best_sample)
-                else:
-                    self.model.progress_to_next_epoch()
-                return
+        if not self.paused: 
             
-            for sample in living_samples:
-                new_x, new_y = sample.move()   
-                new_position_color = self.get_color((new_x, new_y))
-                self.model.handle_status(sample, new_position_color)
-                #print("(",new_x, new_y,"),",end=" ")
-                self.move_cnt += 1
-                
-            self.frame_count += 1
+            self.model.main_loop()
             self.render_screen(self.model.get_population())
-#622 289            
+
     def init_screen(self):
         for obstacle in self.obstacles:
             self.scene().addItem(obstacle)
@@ -132,12 +99,13 @@ class Game_Board(QGraphicsView):
         x, y = position
         if x < 0 or x >= self.board_width or y < 0 or y >= self.board_height:
             return "Out of bounds"
-        else:
-            for item in self.scene().items(QRectF(x, y, 1, 1)):
-                if isinstance(item, QGraphicsRectItem):
-                    # color = item.brush().color().name()
-                    return item.brush().color().name()
-            return None
+
+        for item in self.scene().items(QRectF(x, y, 1, 1)):
+            if isinstance(item, QGraphicsRectItem):
+                # color = item.brush().color().name()
+                return item.brush().color().name()
+
+        return None
 
     def init_end_points(self):
         self.base_size = (self.board_width // 20, self.board_height // 20)

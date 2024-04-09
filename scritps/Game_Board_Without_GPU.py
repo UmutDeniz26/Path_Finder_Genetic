@@ -15,7 +15,7 @@ class Game_Board():
     def __init__(self, board_size, model, obstacles):
         super().__init__()
 
-        logging.basicConfig(filename='app.log', filemode='w', format='%(asctime)s - %(levelname)s - %(message)s')
+        logging.basicConfig(filename='log/app.log', filemode='w', format='%(asctime)s - %(levelname)s - %(message)s')
         logging.getLogger().setLevel(logging.DEBUG)
 
         # Essential attributes
@@ -25,8 +25,7 @@ class Game_Board():
         # 0 -> Empty, 1 -> Obstacle, 2 -> Start, 3 -> End
         self.board = np.zeros(shape=(self.board_width, self.board_height), dtype=np.uint8)
         
-        # Initialization of counters & arrays
-        self.epoch_count = 0; self.loop_count = 0;self.move_cnt = 0
+        # Initialization of counters & arrays      
         self.obstacles = obstacles; self.population = []
         
         # Draw essential objects
@@ -45,35 +44,12 @@ class Game_Board():
 
         logging.info("Game Board is initialized correctly")
         
-    def update_samples(self):
-        # Get the living samples        
-        living_samples = self.model.get_living_samples()
-
-        # If the number of samples is less than the number of samples, create a new generation
-        if not living_samples:
-            if self.model.not_learning_flag:
-                best_control_history = self.model.evulation_results[0]["sample"].controls
-                best_sample = Sample(
-                    board_size        = self.board_size, 
-                    speed             = self.model.sample_speed,
-                    external_controls = best_control_history
-                )
-                best_sample.set_score(self.model.evulation_results[0]["score"])
-                
-                logging.debug(f"Model is in not learning mode, best control history: {best_control_history}")
-                logging.debug(f"Best sample score: {self.model.evulation_results[0]['score']}")
-                logging.debug(f"Best sample move count: {self.move_cnt}")
-
-                self.move_cnt=0
-                self.model.population = [best_sample]
-            else:
-                self.model.progress_to_next_epoch()
-            return
-        # If len of the population is greater than 0, move the samples
-        else:
-            self.model.update_living_samples()
+    # To run the model, execute the main loop
+    def update_samples(self):      
+        self.model.main_loop()
         
-    def get_color(self, x, y):
+    def get_color(self, position):
+        x, y = position
         if x < 0 or x >= self.board_width or y < 0 or y >= self.board_height:
             return "Out of bounds"
         else:
