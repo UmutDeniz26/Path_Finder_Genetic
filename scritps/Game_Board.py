@@ -43,7 +43,7 @@ class Game_Board(QGraphicsView):
         self.setMouseTracking(True)
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_samples)
-        self.timer.start(50)
+        self.timer.start(25)
 
         # Set the End Points
         self.init_end_points()
@@ -58,7 +58,7 @@ class Game_Board(QGraphicsView):
         self.model.board = self
         self.model.assign_board_attributes()
 
-        self.refresh_rate = 8 * self.distance_between_start_and_end / self.model.sample_speed
+        self.refresh_rate = ( 8 * self.distance_between_start_and_end / self.model.sample_speed ) * 20 / self.model.sample_speed
         self.model.model_loop()
         self.init_screen()
         print("Game Board is initialized correctly")

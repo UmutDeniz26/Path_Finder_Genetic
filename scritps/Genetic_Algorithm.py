@@ -1,76 +1,99 @@
-import numpy as np;import random;import sys;import os
-import time;import copy;import pandas as pd
+import os
+import sys
+import time
+
+import numpy as np
+import pandas as pd
 
 try:
     from scritps.Sample import Sample
     import scritps.Common as Common
     import scritps.pandas_operations as pandas_operations
-
-except:
-    from Sample import *
+except ImportError:
+    from Sample import Sample
     import Common
     import pandas_operations
 
-
 class Genetic_Algorithm:
     def __init__(
-            self, learning_rate, mutation_rate, select_per_epoch, 
-            generation_multiplier, board_object=None, sample_speed=20,
-            dataframe_path=None, save_flag = False, load_flag = True,
-            exit_reached_flag = False, not_learning_flag = False,
-            timer = None
-            ):
+        self: object,
+        learning_rate: float,
+        mutation_rate: float,
+        select_per_epoch: int,
+        generation_multiplier: int,
+        board_object: object = None,
+        sample_speed: int = 20,
+        dataframe_path: str = None,
+        save_flag: bool = False,
+        load_flag: bool = True,
+        exit_reached_flag: bool = False,
+        not_learning_flag: bool = False,
+        timer: object = None
+    ):
+        """
+        Initialize a Genetic_Algorithm object.
 
-        # The board size is the size of the game board
+        Args:
+            learning_rate (float): The learning rate determining how much the angle will change.
+            mutation_rate (float): The probability of a gene being mutated.
+            select_per_epoch (int): Number of best samples selected per epoch.
+            generation_multiplier (int): Multiplier for generating new samples.
+            board_object (object): The object representing the game board (optional).
+            sample_speed (int, optional): The speed of the samples (default: 20).
+            dataframe_path (str, optional): Path to the dataframe (default: None).
+            save_flag (bool, optional): Flag indicating whether to save progress (default: False).
+            load_flag (bool, optional): Flag indicating whether to load data (default: True).
+            exit_reached_flag (bool, optional): Flag indicating whether to exit when reaching a certain score (default: False).
+            not_learning_flag (bool, optional): Flag indicating whether the model is not learning (default: False).
+            timer (object, optional): Timer object for tracking execution time (default: None).
+
+        Returns:
+            None
+        """
+        # Initialize attributes related to the board object
         if board_object is not None:
-            self.board = board_object;self.assign_board_attributes()
+            self.board = board_object
+            self.assign_board_attributes()
         
+        # Initialize timer if provided
         self.timer = timer
         if timer is not None:
             self.timer.start_new_timer("Main Timer")
             self.timer.start_new_timer("Initialization Timer")
 
-        # The no change counter is the counter that holds the number of epochs that the best score does not change
-        self.no_change_counter = 0; self.hold_best_score = 0;self.epoch = 0
-
-        # The sample speed is the speed of the samples
+        # Initialize counters and flags
+        self.no_change_counter = 0
+        self.hold_best_score = 0
+        self.epoch = 0
         self.sample_speed = sample_speed
-        
-        # The learning rate is the how much of the angle will be changed
-        # The mutation rate is the probability of a gene to be mutated
         self.learning_rate = learning_rate
         self.mutation_rate = mutation_rate
-
-        # Hold the original values of the learning rate and the mutation rate
+        self.mutation_rate_sign = -1
         self.learning_rate_original = self.learning_rate
         self.mutation_rate_original = self.mutation_rate
 
-        # It selects best {select_per_epoch} samples from the previous generation
-        # It generates {select_per_epoch*multiplier} samples for the next generation
+        # Set parameters for generating new samples
         self.select_per_epoch = select_per_epoch 
         self.generation_multiplier = generation_multiplier 
-
-        # The population size is the number of samples in the population
         self.population_size = select_per_epoch * generation_multiplier
         self.no_change_limit = int((200 / self.population_size) * 40) + 5
-        
-        # Population is the list of samples, evulation_results is the list of the results of the samples
+
+        # Initialize lists and flags
         self.evulation_results = []
         self.population = []
         self.best_control = []
-        
-        # The dataframe path is the path of the dataframe
         self.dataframe_path = dataframe_path
-
-        # Flags
         self.save_flag = save_flag
         self.not_learning_flag = not_learning_flag
         self.exit_reached_flag = exit_reached_flag
         
+        # Load dataframe if path exists and load_flag is True
         if os.path.exists(dataframe_path) and load_flag:
             self.upload_dataframe()
         
-        timer.stop_timer("Initialization Timer") if timer is not None else None
+        # Stop initialization timer if timer is provided
+        if timer is not None:
+            self.timer.stop_timer("Initialization Timer")
 
     # Manipulates evulation_results due to the uploaded dataframe
     def upload_dataframe(self):
@@ -104,13 +127,20 @@ class Genetic_Algorithm:
         if learning_rate is not None:
             learning_rate = learning_rate + learning_rate * 0.2
             self.learning_rate = learning_rate
-        
+
         if mutation_rate is not None:
-            mutation_rate = mutation_rate - mutation_rate * 0.2
+            mutation_rate = mutation_rate + mutation_rate * 0.2 * self.mutation_rate_sign
             self.mutation_rate = mutation_rate
-        
-        self.mutation_rate = self.mutation_rate_original if mutation_rate < 0.01 else mutation_rate
-        self.learning_rate = self.learning_rate_original if learning_rate > 0.80 else learning_rate
+
+        if (mutation_rate > 0.80 and self.mutation_rate_sign == 1) or\
+            (mutation_rate < 0.01 and self.mutation_rate_sign == -1):
+    
+            self.mutation_rate = self.mutation_rate_original 
+            self.mutation_rate_sign *= -1
+
+        if learning_rate > 0.80:
+            self.learning_rate = self.learning_rate_original
+
 
     # It creates the new generation
     def model_loop(self):
@@ -161,7 +191,7 @@ class Genetic_Algorithm:
             return []
 
         # For each move, a random angle will be chosen
-        self.sort_evulation_results()
+        # self.sort_evulation_results()
         angles = []
         self.timer.stop_timer("Mutation Timer Part 2") if self.timer is not None else None
         try:
@@ -274,8 +304,7 @@ class Genetic_Algorithm:
     def reset_samples(self):
         for sample in self.population:
             final_result = sample.kill_sample_get_score()
-            final_result.update({"status": "Reset"})
-            self.add_result_dict(sample=final_result["sample"], status=final_result["status"])
+            self.add_result_dict(sample=final_result["sample"], status="Reset")
 
     def assign_board_attributes(self):
         self.board_width, self.board_height = self.board.board_width, self.board.board_height
@@ -304,7 +333,7 @@ class Genetic_Algorithm:
         STATISTICS:
             BEST SCORE        : {self.evulation_results[0]["score"]:15.10f} | MOVE COUNT OF BEST: {move_count_of_best:7.3f} 
             NUMBER OF RESULTS : {len(self.evulation_results):15.0f} | AVERAGE SCORE     : {self.calculate_average_score():7.3f}
-            RATIO OF SUCCESS  : {ratio_success:15.11f} | 
+            RATIO OF SUCCESS  : {ratio_success:15.11f}
         """)
         
     def print_epoch_info(self):
@@ -317,7 +346,7 @@ class Genetic_Algorithm:
             SELECT_PER_EPOCH: {self.select_per_epoch:7.1f} | MULTIPLIER        : {self.generation_multiplier:7.1f}
             SAMPLE_SPEED    : {self.sample_speed:7.1f} | BOARD_SIZE        : {self.board_width}x{self.board_height}
             NO CHANGE LIMIT : { self.no_change_limit:7.1f} | NO CHANGE COUNTER : {self.no_change_counter:7.1f}
-            REFRESH RATE    : {self.board.refresh_rate if hasattr(self.board, "refresh_rate") else 0:7.1f}
+            REFRESH RATE    : {self.board.refresh_rate if hasattr(self.board, "refresh_rate") else 0:7.1f} | SAMOLE COUNT      : {len(self.population):7.1f}
         """)
 
 if __name__ == "__main__":

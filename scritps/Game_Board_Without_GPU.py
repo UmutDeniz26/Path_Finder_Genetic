@@ -1,8 +1,7 @@
 import sys
 import numpy as np
-
 import pandas as pd
-sys.path.insert(0, "path_finder")
+import logging
 
 try:
     from Sample import Sample
@@ -15,13 +14,16 @@ class Game_Board():
      
     def __init__(self, board_size, model, obstacles):
         super().__init__()
-        
+
+        logging.basicConfig(filename='app.log', filemode='w', format='%(asctime)s - %(levelname)s - %(message)s')
+        logging.getLogger().setLevel(logging.DEBUG)
+
         # Essential attributes
         self.board_width, self.board_height = board_size
         self.board_size = board_size
 
         # 0 -> Empty, 1 -> Obstacle, 2 -> Start, 3 -> End
-        self.board = np.zeros(shape=(self.board_width, self.board_height), dtype=np.int8)
+        self.board = np.zeros(shape=(self.board_width, self.board_height), dtype=np.uint8)
         
         # Initialization of counters & arrays
         self.frame_count = 0; self.epoch_count = 0; self.loop_count = 0;self.move_cnt = 0
@@ -41,9 +43,10 @@ class Game_Board():
         self.model.board = self
         self.model.assign_board_attributes()
 
-        self.model.model_loop() if self.model.learning_rate != 0 else None
-        self.refresh_rate = 8 * self.distance_between_start_and_end / self.model.sample_speed
-        print("Game Board is initialized correctly")
+        self.refresh_rate = \
+            ( 8 * self.distance_between_start_and_end / self.model.sample_speed )
+                
+        logging.info("Game Board is initialized correctly")
         
     def update_samples(self):
             
@@ -54,7 +57,7 @@ class Game_Board():
         living_samples = [ elem for elem in self.model.get_population() if elem.status=="Alive" ]
         #print(len(living_samples))
         # If the number of samples is less than the number of samples, create a new generation
-        if len(living_samples) == 0:
+        if not living_samples:
             self.frame_count = 0
             if self.model.not_learning_flag:
                 best_control_history = self.model.evulation_results[0]["sample"].controls
@@ -65,10 +68,10 @@ class Game_Board():
                 )
                 best_sample.set_score(self.model.evulation_results[0]["score"])
                 
-                print("\n------------------\n, Len of the control history: ",
-                    len(best_control_history)," Last move cnt:",self.move_cnt,"\n",
-                    best_control_history,"\n\n"
-                )
+                logging.debug(f"Model is in not learning mode, best control history: {best_control_history}")
+                logging.debug(f"Best sample score: {self.model.evulation_results[0]['score']}")
+                logging.debug(f"Best sample move count: {self.move_cnt}")
+                
                 self.move_cnt=0
                 self.model.population = [best_sample]
             else:
@@ -81,7 +84,7 @@ class Game_Board():
                 new_x, new_y = sample.move()
                 new_position_color = self.get_color(new_x, new_y)
                 self.model.handle_status(sample, new_position_color)
-                print("(",new_x, new_y,"),",end=" ") if self.model.learning_rate == 0 else None
+                #logging.debug(f"({new_x}, {new_y}),")
                 self.move_cnt += 1
             self.frame_count += 1
         
@@ -89,13 +92,12 @@ class Game_Board():
         if x < 0 or x >= self.board_width or y < 0 or y >= self.board_height:
             return "Out of bounds"
         else:
-            #val = self.board[x,y]
-
-            # select 3x3 square
+            # select mxm square
+            m = 4
             val = self.board[
-                min(max(x-1, 0), self.board_width-1):min(max(x+1, 0), self.board_width-1),
-                min(max(y-1, 0), self.board_height-1):min(max(y+1, 0), self.board_height-1)
-            ].max()
+                max(x - m, 0):min(x + m, self.board_width),
+                max(y - m, 0):min(y + m, self.board_height)
+            ].max() 
 
             if val == 1: # Black
                 return "#000000"
