@@ -9,10 +9,12 @@ import time
 
 try:
     from scritps.Genetic_Algorithm import Genetic_Algorithm
+    from scritps.Sample_qt import Sample_qt
     from scritps.Sample import Sample
 except:
     from Genetic_Algorithm import *
-    from Sample import *
+    from scritps.Sample_qt import Sample_qt
+    from scritps.Sample import Sample
 
 class Game_Board(QGraphicsView):
      
@@ -85,7 +87,7 @@ class Game_Board(QGraphicsView):
     def render_screen(self, population):
         # Remove the previous samples
         if len(self.scene().items()) > 0:
-            samples_to_remove = [item for item in self.scene().items() if isinstance(item, Sample)]
+            samples_to_remove = [item for item in self.scene().items() if isinstance(item, Sample_qt)]
             for item in samples_to_remove:
                 self.scene().removeItem(item)
             
@@ -143,8 +145,6 @@ class Game_Board(QGraphicsView):
         if event.button() == Qt.LeftButton and self.current_obstacle is not None:
             self.obstacles.append(self.current_obstacle)
             self.current_obstacle = None
-            print("Obstacle added, ", len(self.obstacles), " obstacles in total")
-            print("Sample count: ", len(self.model.get_population()))
             self.results = []
             self.model.reset_model()
 

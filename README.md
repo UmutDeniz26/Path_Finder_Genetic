@@ -49,7 +49,7 @@ This project implements a genetic algorithm to visualize pathfinding in a game b
 You can customize various parameters in the `main.py` file, such as:
 - Learning rate
 - Mutation rate
-- Sample speed
+- Sample_qt speed
 - Board size
 - Generation multiplier
 - Select per epoch

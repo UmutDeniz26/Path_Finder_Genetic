@@ -20,7 +20,7 @@ def main():
     GPU = False
     BOARD_SIZE = (700, 700)
     data_path = "log/results.hdf5" 
-    hybrid_flag = True
+    hybrid_flag = False
     hybrid_interval = 100
     hybrid_GPU_coeff = 0.1    
 
@@ -41,7 +41,7 @@ def main():
         exit_reached_flag=False,
         constant_learning_parameter_flag=False,
         not_learning_flag= True if GPU else False,
-        #timer=timer
+        timer=timer
     )
 
     # If GPU is available

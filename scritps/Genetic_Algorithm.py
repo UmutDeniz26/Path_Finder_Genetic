@@ -7,13 +7,16 @@ import numpy as np
 import pandas as pd
 
 try:
-    from scritps.Sample import Sample
     import scritps.Common as Common
     import scritps.pandas_operations as pandas_operations
+    from scritps.Sample_qt import Sample_qt
+    from scritps.Sample import Sample
+
 except ImportError:
-    from Sample import Sample
     import Common
     import pandas_operations
+    from Sample_qt import Sample_qt
+    from Sample import Sample
 
 class Genetic_Algorithm:
     def __init__(
@@ -30,6 +33,7 @@ class Genetic_Algorithm:
         exit_reached_flag: bool = False,
         not_learning_flag: bool = False,
         constant_learning_parameter_flag: bool = False,
+        GPU_board_flag: bool = False,
         timer: object = None
     ):
         """
@@ -48,6 +52,7 @@ class Genetic_Algorithm:
             exit_reached_flag (bool, optional): Flag indicating whether to exit when reaching a certain score (default: False).
             not_learning_flag (bool, optional): Flag indicating whether the model is not learning (default: False).
             constant_learning_parameter_flag (bool, optional): Flag indicating whether the learning parameters are constant (default: False).
+            GPU_board_flag (bool, optional): Flag indicating whether the board is a GPU board (default: False).
             timer (object, optional): Timer object for tracking execution time (default: None).
 
         Returns:
@@ -101,7 +106,8 @@ class Genetic_Algorithm:
         self.not_learning_flag = not_learning_flag
         self.exit_reached_flag = exit_reached_flag
         self.constant_learning_parameter_flag = constant_learning_parameter_flag
-        
+        self.GPU_board_flag = GPU_board_flag
+
         # Load dataframe if path exists and load_flag is True
         if os.path.exists(dataframe_path) and load_flag:
             self.upload_dataframe()
@@ -111,20 +117,24 @@ class Genetic_Algorithm:
     
     # Each trigger of the main loop provides the working of the model
     def main_loop(self): 
+        self.timer.start_new_timer("Main Loop Timer") if self.timer is not None else None
 
         living_samples = self.get_living_samples()
         if len(living_samples):
             if living_samples[0].move_counter > self.refresh_rate:
                 self.reset_samples()
             else:
+                self.timer.start_new_timer("Update Living Samples") if self.timer is not None else None
                 self.update_living_samples()
+                self.timer.stop_timer("Update Living Samples") if self.timer is not None else None
         else:
             self.progress_to_next_epoch()
-
+        
+        self.timer.stop_timer("Main Loop Timer") if self.timer is not None else None
             
     # It creates the new generation
     def progress_to_next_epoch(self):
-        self.timer.start_new_timer("Model Loop Timer") if self.timer is not None else None
+        self.timer.start_new_timer("Progress_to_next_epoch") if self.timer is not None else None
 
         # If there is no result, create the initial generation
         self.initialize_generation() if len(self.get_population())==0 else None
@@ -146,17 +156,17 @@ class Genetic_Algorithm:
 
         # Timer operations
         if self.timer is not None:
-            self.timer.stop_timer("Model Loop Timer")
+            self.timer.stop_timer("Progress_to_next_epoch")
             self.timer.print_timers()
-            self.timer.print_ratio("Main Timer", "New Generation Timer")
-            self.timer.print_ratio("Mutation Timer", "Mutation Timer Part 2")
+            #self.timer.print_ratio("New Generation Timer", "Progress_to_next_epoch")
+            self.timer.print_ratio("Progress_to_next_epoch", "Main Loop Timer")
+            self.timer.print_ratio("Update Living Samples", "Main Loop Timer")
 
     def update_living_samples(self):
         for sample in self.get_living_samples():
             new_x, new_y = sample.move()
             new_position_color = self.board.get_color((new_x, new_y))
             self.handle_status(sample, new_position_color)
-
     # It creates the new generation's samples
     def create_new_generation_samples(self):
         for index,_ in enumerate(self.population):
@@ -201,10 +211,17 @@ class Genetic_Algorithm:
     # Returns totally random angles for the first generation
     def initialize_generation(self):
         for i in range(self.population_size):
-            self.population.append(Sample(
-                self.board_size, 
-                self.sample_speed,
-            ))
+            
+            if self.GPU_board_flag:
+                self.population.append(Sample_qt(
+                    self.board_size, 
+                    self.sample_speed,
+                ))
+            else:
+                self.population.append(Sample(
+                    self.board_size, 
+                    self.sample_speed,
+                ))
  
     def handle_status(self, sample, color):
         if color is not None:

@@ -3,12 +3,6 @@ import numpy as np
 import pandas as pd
 import logging
 
-try:
-    from Sample import Sample
-    from Game_Board import Game_Board_GPU
-except:
-    from scritps.Sample import Sample
-    from scritps.Game_Board import Game_Board as Game_Board_GPU
 
 class Game_Board():
      
