@@ -43,7 +43,7 @@ class Game_Board(QGraphicsView):
         self.setMouseTracking(True)
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_samples)
-        self.timer.start(25)
+        self.timer.start(50)
 
         # Set the End Points
         self.init_end_points()
@@ -82,7 +82,6 @@ class Game_Board(QGraphicsView):
         for sample in self.model.get_population():
             self.scene().addItem(sample)
             
-    
     def render_screen(self, population):
         # Remove the previous samples
         if len(self.scene().items()) > 0:
@@ -94,7 +93,6 @@ class Game_Board(QGraphicsView):
         for sample in population[:self.model.select_per_epoch]:
             self.scene().addItem(sample)
     
-
     def get_color(self, position):
         x, y = position
         if x < 0 or x >= self.board_width or y < 0 or y >= self.board_height:

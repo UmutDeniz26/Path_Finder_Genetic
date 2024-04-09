@@ -8,6 +8,9 @@ import numpy as np
 
 id_counter = 0
 
+cosine_values = np.array([math.cos(math.radians(angle)) for angle in range(360)])
+sine_values = np.array([math.sin(math.radians(angle)) for angle in range(360)])
+
 class Sample(QGraphicsItem):
     def __init__( self, board_size, speed=20,
                 external_controls=[]
@@ -28,14 +31,12 @@ class Sample(QGraphicsItem):
         self.target_point = QPointF(self.board_width, self.board_height // 2)
         
         # Set the initial position of the sample
-        self.spawn_point = (50, self.board_height // 2)
+        self.spawn_point = (0, self.board_height // 2)
         self.setPos(self.spawn_point[0], self.spawn_point[1])
 
         # Initialization of counters & arrays
-        if len(external_controls) != 0:
-            self.controls = external_controls
-        else:
-            self.controls = []
+        self.controls = external_controls if len(external_controls) != 0 else []
+
         self.assign_id()
         
     # Control angles
@@ -66,31 +67,23 @@ class Sample(QGraphicsItem):
         angle = self.controls[self.get_and_increase_move_counter()]
         
         # Calculate the new position of the sample
-        new_x = int( self.x() + self.speed * math.cos(math.radians(angle)) )
-        new_y = int( self.y() + self.speed * math.sin(math.radians(angle)) )
+        new_x = int(self.x() + self.speed * cosine_values[int(angle)%360])
+        new_y = int(self.y() + self.speed * sine_values[int(angle)%360])
 
         # This is where we move the sample
         self.setPos(new_x, new_y)
-
-        # After every move, calculate the fitness of the sample for the target point
-        # self.calculate_fitness( self.target_point )
 
         return new_x, new_y
     
     def calculate_fitness(self, end_point):
         # Calculate the distance between the sample and the end point
-        distance = math.sqrt(
-            (self.x() - end_point.x())**2 +
-            (self.y() - end_point.y())**2
+        distance = np.linalg.norm(
+            np.array([self.x(), self.y()]) - np.array([end_point.x(), end_point.y()])
         )
 
         # score=1/distance can be another option to calculate fitness
         score_local = 1000 if distance == 0 else (1 / distance)
         
-        # Update score
-        # self.set_score( score_local )
-
-        # score_local and self.score !are differenet! if you use cummulative approach
         return score_local        
             
     # Return the control history and the final score of the sample

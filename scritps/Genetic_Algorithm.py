@@ -29,6 +29,7 @@ class Genetic_Algorithm:
         load_flag: bool = True,
         exit_reached_flag: bool = False,
         not_learning_flag: bool = False,
+        constant_learning_parameter_flag: bool = False,
         timer: object = None
     ):
         """
@@ -46,6 +47,7 @@ class Genetic_Algorithm:
             load_flag (bool, optional): Flag indicating whether to load data (default: True).
             exit_reached_flag (bool, optional): Flag indicating whether to exit when reaching a certain score (default: False).
             not_learning_flag (bool, optional): Flag indicating whether the model is not learning (default: False).
+            constant_learning_parameter_flag (bool, optional): Flag indicating whether the learning parameters are constant (default: False).
             timer (object, optional): Timer object for tracking execution time (default: None).
 
         Returns:
@@ -98,6 +100,7 @@ class Genetic_Algorithm:
         self.save_flag = save_flag
         self.not_learning_flag = not_learning_flag
         self.exit_reached_flag = exit_reached_flag
+        self.constant_learning_parameter_flag = constant_learning_parameter_flag
         
         # Load dataframe if path exists and load_flag is True
         if os.path.exists(dataframe_path) and load_flag:
@@ -107,12 +110,17 @@ class Genetic_Algorithm:
         self.timer.stop_timer("Initialization Timer") if timer is not None else None
     
     # Each trigger of the main loop provides the working of the model
-    def main_loop(self):
-        #self.reset_handler()    
-        if len(self.get_living_samples()):
-            self.update_living_samples()
-        else:   
+    def main_loop(self): 
+
+        living_samples = self.get_living_samples()
+        if len(living_samples):
+            if living_samples[0].move_counter > self.refresh_rate:
+                self.reset_samples()
+            else:
+                self.update_living_samples()
+        else:
             self.progress_to_next_epoch()
+
             
     # It creates the new generation
     def progress_to_next_epoch(self):
@@ -148,13 +156,6 @@ class Genetic_Algorithm:
             new_x, new_y = sample.move()
             new_position_color = self.board.get_color((new_x, new_y))
             self.handle_status(sample, new_position_color)
-            self.loop_count += 1
-
-    def reset_handler(self):
-        # If the frame count is greater than the reset limit, reset the samples
-        if self.loop_count > self.refresh_rate:
-            self.loop_count = 0
-            self.reset_samples()
 
     # It creates the new generation's samples
     def create_new_generation_samples(self):
@@ -210,7 +211,9 @@ class Genetic_Algorithm:
             return_data = sample.kill_sample_get_score()
             
             if color == "#00ff00":
-                return_data["sample"].set_score(1000 + 1 / return_data["sample"].final_move_count)
+                return_data["sample"].set_score(
+                    1000 + 100 / return_data["sample"].final_move_count + return_data["sample"].get_score()
+                )
                 return_data.update({"status": "Reached the end"})
             elif color == "Out of bounds":
                 return_data.update({"status": "Out of bounds"})
@@ -225,16 +228,17 @@ class Genetic_Algorithm:
 
     # Manipulates the learning rate and the mutation rate
     def handle_learning_parameters(self):
-        best_score = self.evulation_results[0]["score"] if len(self.evulation_results) > 0 else 0
-        if best_score == self.hold_best_score:
-            self.no_change_counter += 1
-        else:
-            self.no_change_counter = 0
-            self.learning_rate, self.mutation_rate = self.learning_rate_original, self.mutation_rate_original
-        self.hold_best_score = best_score
+        if not self.constant_learning_parameter_flag:
+            best_score = self.evulation_results[0]["score"] if len(self.evulation_results) > 0 else 0
+            if best_score == self.hold_best_score:
+                self.no_change_counter += 1
+            else:
+                self.no_change_counter = 0
+                self.learning_rate, self.mutation_rate = self.learning_rate_original, self.mutation_rate_original
+            self.hold_best_score = best_score
 
-        if self.no_change_counter > self.no_change_limit:
-            self.change_parameters( self.learning_rate, self.mutation_rate )
+            if self.no_change_counter > self.no_change_limit:
+                self.change_parameters( self.learning_rate, self.mutation_rate )
     
     def save_process_managment(self):
         if self.epoch % (self.no_change_limit * 2) == 0 and self.save_flag and \
@@ -339,12 +343,13 @@ class Genetic_Algorithm:
 
     # It kills the sample and returns the control history and the final score of the sample    
     def reset_samples(self):
-        for sample in self.population:
+        for sample in self.get_living_samples():
             final_result = sample.kill_sample_get_score()
+            final_result["sample"].set_status("Reset")
             self.add_result_dict(sample=final_result["sample"], status="Reset")
 
     def assign_board_attributes(self, board):
-        self.refresh_rate = ( 8 * board.distance_between_start_and_end / self.sample_speed )
+        self.refresh_rate = ( 4 * board.distance_between_start_and_end / self.sample_speed )
         self.board_width, self.board_height = board.board_width, board.board_height
         self.max_move_count = self.board_width * 10 // self.sample_speed
         self.board_size = (self.board_width, self.board_height)
