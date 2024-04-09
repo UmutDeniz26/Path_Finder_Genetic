@@ -5,7 +5,7 @@ from scritps.Game_Board import Game_Board
 from scritps.Game_Board_Without_GPU import Game_Board as Game_Board_Without_GPU
 from scritps.Genetic_Algorithm import Genetic_Algorithm
 from scritps.timer import Timer
-
+import time
 
 def main():
     default_objects=[]    
@@ -13,9 +13,11 @@ def main():
     #1 default_objects = [{"x":300, "y":300, "width":100, "height":100}]
     default_objects = [{'x': 116, 'y': 14, 'width': 98, 'height': 403}, {'x': 285, 'y': 250, 'width': 90, 'height': 432}, {'x': 393, 'y': 234, 'width': 206, 'height': 42}, {'x': 623, 'y': 272, 'width': 40, 'height': 35}, {'x': 449, 'y': 310, 'width': 52, 'height': 45}, {'x': 562, 'y': 357, 'width': 52, 'height': 160}, {'x': 391, 'y': 68, 'width': 268, 'height': 43}, {'x': 18, 'y': 543, 'width': 118, 'height': 124}, {'x': 139, 'y': 502, 'width': 69, 'height': 23}, {'x': 626, 'y': 393, 'width': 69, 'height': 33}]
     
-    GPU = False
+    GPU = True
     BOARD_SIZE = (700, 700)
     data_path = "log/results.hdf5" 
+    hybrid_flag = False
+    hybrid_interval = 30
 
     timer = Timer()
 
@@ -25,11 +27,11 @@ def main():
     modal = Genetic_Algorithm(
         learning_rate = 0 if GPU else 0.1, 
         mutation_rate = 0 if GPU else 0.1,
-        select_per_epoch=1 if GPU else 30,
-        generation_multiplier=1 if GPU else 50,
+        select_per_epoch=1 if GPU else 40,
+        generation_multiplier=1 if GPU else 10,
         save_flag= save_flag,  
         load_flag= load_flag,
-        sample_speed=30,
+        sample_speed=20,
         dataframe_path=data_path,
         exit_reached_flag=False,
         not_learning_flag= True if GPU else False,
@@ -52,6 +54,36 @@ def main():
             board_size=BOARD_SIZE, model=modal, 
             obstacles=default_objects,
         )
+
+        if hybrid_flag:
+            app = QApplication(sys.argv)
+            board_GPU = Game_Board(
+                board_size=BOARD_SIZE, model=modal, 
+                obstacles=object_dist_to_Qt(default_objects),
+                timer=timer, hybrid_interval = hybrid_interval
+            )
+        
+
+            timer.start_new_timer("with-GPU")
+            timer.start_new_timer("non-GPU")    
+            while True:
+                timer_non_GPU_index = timer.get_timer_index("non-GPU")
+                timer.reset_timer("non-GPU")
+                while True:
+                    board.update_samples()
+                    timer.update_timers()
+                    if timer.timers[timer_non_GPU_index]["current"] > hybrid_interval:
+                        break
+                print("non-GPU is finished")
+                time.sleep(1)
+                
+                timer.reset_timer("with-GPU")
+                board_GPU.show();app.exec_()
+                print("with-GPU is finished")
+                time.sleep(1)
+        else:
+            while True:
+                board.update_samples()
 
 def object_dist_to_Qt(object_list):
     return_dist = []

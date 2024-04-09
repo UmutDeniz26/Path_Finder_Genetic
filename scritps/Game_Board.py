@@ -16,7 +16,7 @@ except:
 
 class Game_Board(QGraphicsView):
      
-    def __init__(self, board_size, model, obstacles):
+    def __init__(self, board_size, model, obstacles,timer=None, hybrid_interval = 0):
         super().__init__()
 
         # Set the scene and the scene rectangle
@@ -27,10 +27,13 @@ class Game_Board(QGraphicsView):
         self.board_width, self.board_height = board_size
         self.board_size = board_size
         self.loop_count = 0
+        self.hybrid_interval = hybrid_interval
+
+        if timer is not None:
+            self.mytimer = timer
 
         #Default choices
         self.current_obstacle = None;self.paused = False
-        self.refresh_rate = 8 * self.distance_between_start_and_end / self.model.sample_speed
 
         # Initialization of counters & arrays
         self.frame_count = 0;self.epoch_count = 0;self.population = []
@@ -55,11 +58,18 @@ class Game_Board(QGraphicsView):
         self.model.board = self
         self.model.assign_board_attributes()
 
+        self.refresh_rate = 8 * self.distance_between_start_and_end / self.model.sample_speed
         self.model.model_loop()
         self.init_screen()
         print("Game Board is initialized correctly")
         
     def update_samples(self):
+        if hasattr(self, "mytimer"):
+            if self.mytimer is not None:
+                timer_with_GPU_index = self.mytimer.get_timer_index("with-GPU")
+                self.mytimer.update_timers()
+                if self.mytimer.timers[timer_with_GPU_index]["current"] > self.hybrid_interval:
+                    QApplication.quit()
 
         # If the frame count is greater than the reset limit, reset the samples
         if self.refresh_rate < self.frame_count:
@@ -94,12 +104,12 @@ class Game_Board(QGraphicsView):
                 new_x, new_y = sample.move()   
                 new_position_color = self.get_color((new_x, new_y))
                 self.model.handle_status(sample, new_position_color)
-                print("(",new_x, new_y,"),",end=" ")
+                #print("(",new_x, new_y,"),",end=" ")
                 self.move_cnt += 1
                 
             self.frame_count += 1
             self.render_screen(self.model.get_population())
-                
+#622 289            
     def init_screen(self):
         for obstacle in self.obstacles:
             self.scene().addItem(obstacle)
@@ -115,7 +125,7 @@ class Game_Board(QGraphicsView):
                 self.scene().removeItem(item)
             
         # Add the new samples
-        for sample in population:
+        for sample in population[:self.model.select_per_epoch]:
             self.scene().addItem(sample)
     
 

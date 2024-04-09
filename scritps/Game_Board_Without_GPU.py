@@ -6,8 +6,10 @@ sys.path.insert(0, "path_finder")
 
 try:
     from Sample import Sample
+    from Game_Board import Game_Board_GPU
 except:
     from scritps.Sample import Sample
+    from scritps.Game_Board import Game_Board as Game_Board_GPU
 
 class Game_Board():
      
@@ -41,12 +43,7 @@ class Game_Board():
 
         self.model.model_loop() if self.model.learning_rate != 0 else None
         self.refresh_rate = 8 * self.distance_between_start_and_end / self.model.sample_speed
-        
         print("Game Board is initialized correctly")
-        while True:
-            self.model.timer.start_new_timer("Board Loop") if self.model.timer is not None else None
-            self.update_samples()
-            self.model.timer.stop_timer("Board Loop") if self.model.timer is not None else None
         
     def update_samples(self):
             
@@ -92,7 +89,14 @@ class Game_Board():
         if x < 0 or x >= self.board_width or y < 0 or y >= self.board_height:
             return "Out of bounds"
         else:
-            val = self.board[x,y]
+            #val = self.board[x,y]
+
+            # select 3x3 square
+            val = self.board[
+                min(max(x-1, 0), self.board_width-1):min(max(x+1, 0), self.board_width-1),
+                min(max(y-1, 0), self.board_height-1):min(max(y+1, 0), self.board_height-1)
+            ].max()
+
             if val == 1: # Black
                 return "#000000"
             elif val == 3: # Green

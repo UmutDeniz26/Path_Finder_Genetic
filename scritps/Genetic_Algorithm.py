@@ -57,6 +57,7 @@ class Genetic_Algorithm:
         # Population is the list of samples, evulation_results is the list of the results of the samples
         self.evulation_results = []
         self.population = []
+        self.best_control = []
         
         # The dataframe path is the path of the dataframe
         self.dataframe_path = dataframe_path
@@ -88,6 +89,7 @@ class Genetic_Algorithm:
                 row = row
             )
         self.sort_evulation_results()
+        self.best_control = self.evulation_results[0]["controls"]
         if self.not_learning_flag:
             self.evulation_results = [self.evulation_results[0]]
                 
@@ -146,7 +148,7 @@ class Genetic_Algorithm:
             # Get mutated angles which is created by the evulation_results dict
             self.population[index].set_controls(
                 assign_mode="copy",
-                external_controls = self.mutation( len( self.population[index].controls ) )
+                external_controls = self.mutation( len( self.population[index].controls ) ) if self.not_learning_flag == False else self.best_control
             )
             self.population[index].set_status("Alive")
             
@@ -189,7 +191,7 @@ class Genetic_Algorithm:
         for i in range(self.population_size):
             self.population.append(Sample(
                 self.board_size, 
-                self.sample_speed
+                self.sample_speed,
             ))
  
     def handle_status(self, sample, color):
@@ -266,7 +268,7 @@ class Genetic_Algorithm:
 
     def sort_evulation_results(self):
         self.evulation_results.sort(key=lambda x: x["score"], reverse=True)
-        self.evulation_results = self.evulation_results[:self.select_per_epoch*self.generation_multiplier]
+        self.evulation_results = self.evulation_results[:self.select_per_epoch]
 
     # It kills the sample and returns the control history and the final score of the sample    
     def reset_samples(self):

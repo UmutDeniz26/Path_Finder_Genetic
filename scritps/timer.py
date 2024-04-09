@@ -37,6 +37,16 @@ class Timer:
                 self.timers.remove(timer)
                 return "removed"
         return "timer not found"
+    
+    def reset_timer(self, timer_name):
+        for timer in self.timers:
+            if timer["name"] == timer_name:
+                timer["start"] = time.time()
+                timer["end"] = -1
+                timer["total_duration"] = 0.00001
+                timer["update_cnt"] = 0
+                return "reset"
+        return "timer not found"
 
     def print_ratio(self, timer_name, timer_name2):
         
@@ -78,6 +88,11 @@ class Timer:
             timer.update({"average": average})
             timer.update({"summ": current_time + end_between })
 
+    def get_timer_index(self, timer_name):
+        for index, timer in enumerate(self.timers):
+            if timer["name"] == timer_name:
+                return index
+        return -1
 
     def print_timers(self):
         print("All timers are returned in seconds")
