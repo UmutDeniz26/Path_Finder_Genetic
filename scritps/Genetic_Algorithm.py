@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import logging
 
 import numpy as np
 import pandas as pd
@@ -50,6 +51,22 @@ class Genetic_Algorithm:
         Returns:
             None
         """
+
+        # Initialize logging
+        self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(logging.DEBUG)  # Set log level as needed
+
+        # Define a file handler and set the log level
+        file_handler = logging.FileHandler('genetic_algorithm.log')
+        file_handler.setLevel(logging.DEBUG)  # Set log level as needed
+
+        # Define a formatter
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        file_handler.setFormatter(formatter)
+
+        # Add the file handler to the logger
+        self.logger.addHandler(file_handler)
+
         # Initialize attributes related to the board object
         if board_object is not None:
             self.board = board_object
@@ -98,30 +115,38 @@ class Genetic_Algorithm:
     # Manipulates evulation_results due to the uploaded dataframe
     def upload_dataframe(self):
         if not os.path.exists(self.dataframe_path):
-            print("The file is not found")
-            return
+            message = "The specified file path does not exist."
+            self.logger.error(message)
+            Common.exit_with_print(message)
         
-        result_pd, metadata = pandas_operations.load_dataframe_hdf5(
-            self.dataframe_path
-        )
-        
+        try:
+            result_pd, metadata = pandas_operations.load_dataframe_hdf5(self.dataframe_path)
+        except Exception as e:
+            self.logger.error(f"Error loading dataframe: {e}")
+            Common.exit_with_print(e)
+
+        if result_pd is None or metadata is None:
+            message = "Failed to load dataframe or metadata."
+            self.logger.error(message)
+            Common.exit_with_print(message)
+            
         # Update the model due to the uploaded dataframe ( Manipulate the evulation_results )
         self.reset_model()
         for _, row in result_pd.iterrows():
-            self.add_result_dict(
-                row = row
-            )
+            self.add_result_dict(row=row)
         self.sort_evulation_results()
         self.best_control = self.evulation_results[0]["controls"]
         if self.not_learning_flag:
             self.evulation_results = [self.evulation_results[0]]
-                
+
         # Metadata operations
         Common.print_dict(metadata)
         self.epoch = int(metadata["EPOCH_COUNT"]) + 1
 
         input("Press any key to continue...")
-            
+
+        self.logger.info("Dataframe uploaded successfully.")
+       
     def change_parameters(self, learning_rate, mutation_rate):
         self.no_change_counter = 0
         if learning_rate is not None:
@@ -184,22 +209,19 @@ class Genetic_Algorithm:
             
     def mutation(self,angles_len):
         self.timer.start_new_timer("Mutation Timer") if self.timer is not None else None
-        self.timer.start_new_timer("Mutation Timer Part 2") if self.timer is not None else None
         
         # If there is no result, return an empty list
         if angles_len == 0:
             return []
+        
+        #random_indicies = np.random.choice(self.select_per_epoch, angles_len)
+        random_indices = np.random.randint(0, self.select_per_epoch, angles_len)
 
-        # For each move, a random angle will be chosen
-        # self.sort_evulation_results()
         angles = []
-        self.timer.stop_timer("Mutation Timer Part 2") if self.timer is not None else None
-        try:
-            for index in range(angles_len):    
-                angles.append(
-                    np.random.choice(self.evulation_results[0:self.select_per_epoch])["controls"][index])
-        except:
-            pass
+        for j, i in enumerate(random_indices):
+            if j >= len(self.evulation_results[i]["controls"]):
+                break
+            angles.append(self.evulation_results[i]["controls"][j])
 
         # If the model is not learning, the angles will be the best angles
         angles = self.evulation_results[0]["controls"] if self.not_learning_flag else angles
@@ -256,14 +278,16 @@ class Genetic_Algorithm:
             self.change_parameters( self.learning_rate, self.mutation_rate )
     
     def save_process_managment(self):
-        if  self.epoch % (self.no_change_limit * 2) == 0 and self.save_flag and \
-            len(self.evulation_results) > 0: 
-            print("Saving the progress...");time.sleep(1)
+        if self.epoch % (self.no_change_limit * 2) == 0 and self.save_flag and \
+            len(self.evulation_results) > 0:
+            self.logger.info("Saving the progress...")
+            print("Saving the progress...")
+            time.sleep(1)
             # Create the metadata
             metadata = {
-                "LEARNING_RATE": self.learning_rate,"MUTATION_RATE": self.mutation_rate,
-                "SELECT_PER_EPOCH": self.select_per_epoch,"MULTIPLIER": self.generation_multiplier,
-                "BOARD_SIZE": (self.board_width, self.board_height),"EPOCH_COUNT": self.epoch,
+                "LEARNING_RATE": self.learning_rate, "MUTATION_RATE": self.mutation_rate,
+                "SELECT_PER_EPOCH": self.select_per_epoch, "MULTIPLIER": self.generation_multiplier,
+                "BOARD_SIZE": (self.board_width, self.board_height), "EPOCH_COUNT": self.epoch,
             }
 
             # Save the dataframe
