@@ -17,8 +17,8 @@ def main():
     default_objects = [{'x': 139, 'y': 101, 'width': 119, 'height': 362}, {'x': 301, 'y': 309, 'width': 151, 'height': 374}, {'x': 405, 'y': 105, 'width': 259, 'height': 119}, {'x': 506, 'y': 267, 'width': 74, 'height': 336}, {'x': 625, 'y': 251, 'width': 70, 'height': 31}]
     #hard default_objects = [{'x': 84, 'y': 17, 'width': 85, 'height': 506}, {'x': 240, 'y': 257, 'width': 113, 'height': 435}, {'x': 295, 'y': 230, 'width': 299, 'height': 58}, {'x': 641, 'y': 151, 'width': 60, 'height': 161}, {'x': 615, 'y': 300, 'width': 41, 'height': 88}, {'x': 557, 'y': 381, 'width': 100, 'height': 40}, {'x': 446, 'y': 359, 'width': 52, 'height': 251}, {'x': 537, 'y': 508, 'width': 142, 'height': 81}, {'x': 647, 'y': 463, 'width': 32, 'height': 25}, {'x': 630, 'y': 279, 'width': 22, 'height': 39}, {'x': 621, 'y': 198, 'width': 81, 'height': 132}]
 
-    GPU = False
-    BOARD_SIZE = (700, 700)
+    GPU = True
+    BOARD_SIZE = (1000, 500)
     data_path = "log/results.hdf5" 
     hybrid_flag = False
     hybrid_interval = 100
@@ -33,7 +33,7 @@ def main():
         learning_rate = 0 if GPU else 0.1, 
         mutation_rate = 0 if GPU else 0.1,
         select_per_epoch=1 if GPU else 50,
-        generation_multiplier=1 if GPU else 10,
+        generation_multiplier=1 if GPU else 20,
         save_flag= save_flag,  
         load_flag= load_flag,
         sample_speed = 20,
@@ -41,7 +41,8 @@ def main():
         exit_reached_flag=False,
         constant_learning_parameter_flag=False,
         not_learning_flag= True if GPU else False,
-        timer=timer
+        GPU_board_flag=GPU,
+        #timer=timer
     )
 
     # If GPU is available

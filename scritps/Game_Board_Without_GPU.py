@@ -15,7 +15,7 @@ class Game_Board():
         # Essential attributes
         self.board_width, self.board_height = board_size
         self.board_size = board_size
-        self.pixel_padding = 4
+        self.pixel_padding = 7
 
         # 0 -> Empty, 1 -> Obstacle, 2 -> Start, 3 -> End
         self.board = np.zeros(shape=(self.board_width, self.board_height), dtype=np.uint8)
@@ -37,7 +37,7 @@ class Game_Board():
         self.model.board = self
         self.model.assign_board_attributes( self )
 
-                # Pre-calculate the padding for the board
+        # Pre-calculate the padding for the board
         self.board_padding = np.copy(self.board)
         for i in range(self.board_padding.shape[0]):
             for j in range(self.board_padding.shape[1]):
@@ -56,6 +56,10 @@ class Game_Board():
         if x < 0 or x >= self.board_width or y < 0 or y >= self.board_height:
             return "Out of bounds"
         
+        #val = self.board[
+        #    max(x - self.pixel_padding, 0):min(x + self.pixel_padding, self.board_width),
+        #    max(y - self.pixel_padding, 0):min(y + self.pixel_padding, self.board_height)
+        #].max()
         val = self.board_padding[x, y]
 
         if val == 0: # White

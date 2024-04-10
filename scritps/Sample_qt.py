@@ -3,6 +3,8 @@ from PyQt5.QtCore import Qt, QRectF, QTimer, QEvent
 from PyQt5.QtGui import QTransform
 from PyQt5.QtWidgets import QGraphicsItem, QGraphicsEllipseItem
 from PyQt5.QtCore import QPointF
+
+from scritps.Sample import Sample
 import random
 import numpy as np
     
@@ -13,7 +15,7 @@ sine_values = np.array([math.sin(math.radians(angle)) for angle in range(360)])
 
 class Sample_qt(QGraphicsItem):
     def __init__( self, board_size, speed=20,
-                external_controls=[]
+                external_controls=[], sample_obj=None
             ):
         super().__init__()
         
@@ -36,6 +38,20 @@ class Sample_qt(QGraphicsItem):
 
         # Initialization of counters & arrays
         self.controls = external_controls if len(external_controls) != 0 else []
+
+
+        if sample_obj is not None:
+            self.board_width = sample_obj.board_width
+            self.board_height = sample_obj.board_height
+            self.speed = sample_obj.speed
+            self.color = sample_obj.color
+            self.size = sample_obj.size
+            self.target_point = sample_obj.target_point
+            self.spawn_point = sample_obj.spawn_point
+            self.controls = sample_obj.controls
+            self.move_counter = sample_obj.move_counter
+            self.score = sample_obj.score
+            self.final_move_count = sample_obj.final_move_count
 
         self.assign_id()
         

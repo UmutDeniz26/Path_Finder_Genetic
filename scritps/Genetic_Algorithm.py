@@ -166,9 +166,7 @@ class Genetic_Algorithm:
         for sample in self.get_living_samples():
             x, y = sample.move()
             color = self.board.get_color(x, y)
-            self.timer.start_new_timer("update part") if self.timer is not None else None
             self.handle_status(sample, color)
-            self.timer.stop_timer("update part") if self.timer is not None else None
 
     # It creates the new generation's samples
     def create_new_generation_samples(self):
@@ -176,7 +174,8 @@ class Genetic_Algorithm:
             # Get mutated angles which is created by the evulation_results dict
             self.population[index].set_controls(
                 assign_mode="copy",
-                external_controls = self.mutation( len( self.population[index].controls ) ) if self.not_learning_flag == False else self.best_control
+                external_controls = self.mutation( 
+                    len( self.population[index].controls ) ) if self.not_learning_flag == False else self.best_control
             )
             self.population[index].set_status("Alive")
             
@@ -233,7 +232,7 @@ class Genetic_Algorithm:
 
             if color == "Reached the end":
                 return_data["sample"].set_score(
-                    1000 + 100 / return_data["sample"].final_move_count + return_data["sample"].get_score()
+                    1000 + 1000 / return_data["sample"].final_move_count + return_data["sample"].get_score()
                 )
             
             return_data["sample"].set_status(color)
@@ -258,7 +257,7 @@ class Genetic_Algorithm:
                 self.change_parameters( self.learning_rate, self.mutation_rate )
     
     def save_process_managment(self):
-        if self.epoch % (self.no_change_limit * 2) == 0 and self.save_flag and \
+        if self.epoch % (self.no_change_limit * 4) == 0 and self.save_flag and \
             len(self.evulation_results) > 0:
             logging.info("Saving the progress...")
             print("Saving the progress...")
