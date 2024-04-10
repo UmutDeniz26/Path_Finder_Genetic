@@ -185,9 +185,7 @@ class Genetic_Algorithm:
 
     # It creates the new generation's samples
     def create_new_generation_samples(self):
-            
         for index,samp in enumerate(self.population):
-            
             self.population[index].set_controls(
                 assign_mode="copy",
                 external_controls = self.mutation( )
@@ -196,9 +194,11 @@ class Genetic_Algorithm:
             
     def mutation(self):
         self.timer.start_new_timer("Mutation Timer") if self.timer is not None else None
-        
-        if len(self.average_controls) == 0:
+
+        if len(self.evulation_results) == 0:
             return []
+        elif self.not_learning_flag:
+            return self.evulation_results[0]["controls"]
         
         # The angles will be the average of the best angles
         #angles = self.calculate_average_controls()
@@ -213,23 +213,32 @@ class Genetic_Algorithm:
             angles.append(self.evulation_results[i]["controls"][j])
 
 
-        mutation_limit = 0 if np.random.uniform(0, 1) < 0.1 else\
-                np.random.randint( 0, len(angles) )
-        
-        # If the model is not learning, the angles will be the best angles
-        angles = self.evulation_results[0]["controls"] if self.not_learning_flag else angles
-
-        # %mutation_rate of the angles will be mutated    
-        if mutation_limit:
-            mask_enable_filter = np.concatenate(
-                    (np.zeros(mutation_limit), np.ones( len(angles) - mutation_limit ))
-                )
-        else:
-            mask_enable_filter = np.random.uniform(0, 1, len(angles)) < self.mutation_rate
-
         # The mask will be multiplied by the angles and then by the learning rate
         mask_coefficients = np.random.uniform(-self.learning_rate,self.learning_rate,len(angles))
 
+        # Decide the mutation mode
+        mutation_mode = np.random.choice([0, 1, 2],p=[0.4, 0.3, 0.3])
+
+        # Mode 0 is the default mode ( For all angles mutation can be possible ) -> %70 probability
+        if mutation_mode == 0:
+            mask_enable_filter = np.random.uniform(0, 1, len(angles)) < self.mutation_rate
+        else:
+            # With %50 probability, the mask coefficients will be multiplied by -1
+            #if np.random.uniform(0,1) < 0.2:
+            mask_coefficients = np.random.uniform(-1,1,len(mask_coefficients)) 
+            mutation_limit = np.random.randint( 0, len(angles) )
+            
+            # Mode 1 is the absolute mutation mode in between [mutation_limit:] -> %10 probability
+            if mutation_mode == 1:
+                mask_enable_filter = np.concatenate(
+                    (np.zeros(mutation_limit), np.ones( len(angles) - mutation_limit ))
+                )
+            # Mode 2 is the possible mutation mode in between [mutation_limit:] -> %20 probability
+            else: # if mutation_mode == 2
+                mask_enable_filter = np.concatenate(
+                    (np.zeros(mutation_limit), np.random.uniform(0, 1, len(angles) - mutation_limit) < self.mutation_rate)
+                )
+    
         # The angles are mutated
         mutated_angles = np.mod(angles + angles * (mask_coefficients * mask_enable_filter), 360).astype(int)
 
@@ -269,18 +278,20 @@ class Genetic_Algorithm:
 
     # Manipulates the learning rate and the mutation rate
     def handle_learning_parameters(self):
-        if not self.constant_learning_parameter_flag:
-            best_score = self.evulation_results[0]["score"] if len(self.evulation_results) > 0 else 0
-            if best_score == self.hold_best_score:
-                self.no_change_counter += 1
-            else:
-                self.no_change_counter = 0
-                self.learning_rate, self.mutation_rate = self.learning_rate_original, self.mutation_rate_original
-            self.hold_best_score = best_score
+        best_score = self.evulation_results[0]["score"] if len(self.evulation_results) > 0 else 0
+        if best_score == self.hold_best_score:
+            self.no_change_counter += 1
+        else:
+            self.no_change_counter = 0
+            self.learning_rate, self.mutation_rate = self.learning_rate_original, self.mutation_rate_original
+        self.hold_best_score = best_score
+        
+        if self.constant_learning_parameter_flag:
+            return
 
-            if self.no_change_counter > self.no_change_limit:
-                self.change_parameters( self.learning_rate, self.mutation_rate )
-    
+        if self.no_change_counter > self.no_change_limit:
+            self.change_parameters( self.learning_rate, self.mutation_rate )
+
     def save_process_managment(self):
         if self.epoch % (self.no_change_limit * 4) == 0 and self.save_flag and \
             len(self.evulation_results) > 0:
@@ -348,9 +359,6 @@ class Genetic_Algorithm:
                 add_dict.update({key: value})
             self.evulation_results.append(add_dict)
         elif sample is not None and status is not None:
-            # if there is a result with same score, then continue
-            if len(self.evulation_results) > 0 and self.evulation_results[0]["score"] == sample.get_score():
-                return
 
             self.evulation_results.append({
                 "controls": sample.get_controls(),
@@ -394,6 +402,7 @@ class Genetic_Algorithm:
     def reset_samples(self):
         for sample in self.get_living_samples():
             final_result = sample.kill_sample_get_score()
+
             final_result["sample"].set_status("Reset")         
             self.add_result_dict(sample=final_result["sample"], status="Reset")
 
@@ -421,19 +430,14 @@ class Genetic_Algorithm:
             return
 
         move_count_of_best = self.evulation_results[0]["final_move_count"]
-        ratio_success = len(
-                [result for result in self.evulation_results if result["status"] == "Reached the end"]
-            ) / len(self.evulation_results)
         print(f"""
         STATISTICS:
             BEST SCORE        : {self.evulation_results[0]["score"]:15.10f} | MOVE COUNT OF BEST  : {move_count_of_best:7.3f} 
-            NUMBER OF RESULTS : {len(self.evulation_results):15.0f} | AVERAGE SCORE       : {self.calculate_average_score():15.11f}
-            RATIO OF SUCCESS  : {ratio_success:15.11f} | 
+            NUMBER OF RESULTS : {len(self.evulation_results):15.0f} | AVERAGE SCORE       : {self.calculate_average_score():15.11f} 
         """)
-        
+
     def print_epoch_info(self):
         self.epoch += 1
-
         print(f"""      
         ===================================== Epoch: "{self.epoch} " =====================================
         CONSTANTS:

@@ -76,7 +76,9 @@ class Sample:
     def calculate_fitness(self):
         # Calculate the distance between the sample and the end point
         distance = np.linalg.norm(np.array(self.get_pos()) - np.array(self.target_point))
-        return 1 / distance if distance != 0 else 1
+        distance = 1 if distance == 0 else distance
+        return 1 / distance
+
     
     # Return the control history and the final score of the sample
     def kill_sample_get_score(self):
