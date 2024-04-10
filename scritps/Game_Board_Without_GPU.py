@@ -61,9 +61,9 @@ class Game_Board():
         if val == 0: # White
             return None
         elif val == 1: # Black
-            return "#000000"
+            return "Hit the obstacle"
         elif val == 3: # Green
-            return "#00ff00"
+            return "Reached the end"
         
         raise ValueError("Unknown color value")
 

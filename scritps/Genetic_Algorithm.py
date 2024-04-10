@@ -165,10 +165,10 @@ class Genetic_Algorithm:
     def update_living_samples(self):
         for sample in self.get_living_samples():
             x, y = sample.move()
-            self.timer.start_new_timer("update part") if self.timer is not None else None
             color = self.board.get_color(x, y)
-            self.timer.stop_timer("update part") if self.timer is not None else None
+            self.timer.start_new_timer("update part") if self.timer is not None else None
             self.handle_status(sample, color)
+            self.timer.stop_timer("update part") if self.timer is not None else None
 
     # It creates the new generation's samples
     def create_new_generation_samples(self):
@@ -228,22 +228,19 @@ class Genetic_Algorithm:
  
     def handle_status(self, sample, color):
         if color is not None:
+            # Kill the sample and get the score
             return_data = sample.kill_sample_get_score()
-            
-            if color == "#00ff00":
+
+            if color == "Reached the end":
                 return_data["sample"].set_score(
                     1000 + 100 / return_data["sample"].final_move_count + return_data["sample"].get_score()
                 )
-                return_data.update({"status": "Reached the end"})
-            elif color == "Out of bounds":
-                return_data.update({"status": "Out of bounds"})
-            elif color == "#000000": 
-                return_data.update({"status": "Hit the obstacle"})
-            return_data["sample"].set_status(return_data["status"])
+            
+            return_data["sample"].set_status(color)
             
             self.add_result_dict(
                 sample=return_data["sample"],
-                status=return_data["status"]
+                status=color
             )
 
     # Manipulates the learning rate and the mutation rate
