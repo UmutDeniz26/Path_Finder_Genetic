@@ -41,12 +41,6 @@ class Game_Board(QGraphicsView):
         self.epoch_count = 0;self.population = []
         self.obstacles = obstacles;self.move_cnt = 0
 
-        # Set the timer and the mouse tracking
-        self.setMouseTracking(True)
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self.update_samples)
-        self.timer.start(50)
-
         # Set the End Points
         self.init_end_points()
         
@@ -63,7 +57,13 @@ class Game_Board(QGraphicsView):
         self.model.progress_to_next_epoch()
         self.init_screen()
         print("Game Board is initialized correctly")
-        
+
+        # Set the timer and the mouse tracking
+        self.setMouseTracking(True)
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update_samples)
+        self.timer.start(50)
+
     def update_samples(self):
         # If the hybrid interval is reached, quit the application
         if hasattr(self, "mytimer"):

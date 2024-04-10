@@ -15,7 +15,7 @@ class Game_Board():
         # Essential attributes
         self.board_width, self.board_height = board_size
         self.board_size = board_size
-        self.pixel_padding = 7
+        self.pixel_padding = 4
 
         # 0 -> Empty, 1 -> Obstacle, 2 -> Start, 3 -> End
         self.board = np.zeros(shape=(self.board_width, self.board_height), dtype=np.uint8)

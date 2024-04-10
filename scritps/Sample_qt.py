@@ -29,6 +29,12 @@ class Sample_qt(QGraphicsItem):
         self.move_counter = 0
         self.final_move_count=0
 
+        # Precalculate the cosine and sine values for each angle
+        self.cosine_values =\
+            np.multiply( np.array([math.cos(math.radians(angle)) for angle in range(360)]), self.speed ).astype(int)
+        self.sine_values =\
+            np.multiply( np.array([math.sin(math.radians(angle)) for angle in range(360)]), self.speed ).astype(int)
+
         # End point
         self.target_point = QPointF(self.board_width, self.board_height // 2)
         
@@ -38,7 +44,6 @@ class Sample_qt(QGraphicsItem):
 
         # Initialization of counters & arrays
         self.controls = external_controls if len(external_controls) != 0 else []
-
 
         if sample_obj is not None:
             self.board_width = sample_obj.board_width
@@ -80,36 +85,28 @@ class Sample_qt(QGraphicsItem):
         # Get the angle of the next move
         while self.move_counter >= len(self.controls):
             self.controls = np.append(self.controls, random.uniform(0, 360))
-        angle = self.controls[self.get_and_increase_move_counter()]
-        
-        # Calculate the new position of the sample
-        new_x = int(self.x() + self.speed * math.cos(math.radians(angle)))
-                    #cosine_values[int(angle)%360])
-        new_y = int(self.y() + self.speed * math.sin(math.radians(angle)))
-                    #sine_values[int(angle)%360])
+        angle = int( self.controls[self.get_and_increase_move_counter()] )
 
-        # This is where we move the sample
-        self.setPos(new_x, new_y)
+        x, y = self.get_pos()
 
-        return new_x, new_y
+        # Update the position
+        self.setPos(
+            x + self.cosine_values[angle], # These cosine and sine values are precalculated
+            y + self.sine_values[angle]    # While calculating, its values are multiplied by the speed!!!
+        )
+
+        return self.get_pos()
     
     def calculate_fitness(self):
         # Calculate the distance between the sample and the end point
-        distance = np.linalg.norm(
-            np.array([self.x(), self.y()]) - np.array([self.target_point.x(), self.target_point.y()])
-        )
-
-        # score=1/distance can be another option to calculate fitness
-        score_local = 1000 if distance == 0 else (1 / distance)
-        
-        return score_local        
+        distance = np.linalg.norm(np.array(self.get_pos()) - np.array([self.target_point.x(), self.target_point.y()]) )
+        return 1 / distance if distance != 0 else 1
             
     # Return the control history and the final score of the sample
     def kill_sample_get_score(self):
         # Set the final move count and reset the move counter
         #self.final_move_count = self.move_counter + self.final_move_count
         self.final_move_count = self.move_counter
-        
         self.set_score( self.calculate_fitness() )
 
         return {"sample": self, "score": self.get_score(), "final_move_count": self.final_move_count}
@@ -136,7 +133,9 @@ class Sample_qt(QGraphicsItem):
     def get_and_increase_move_counter(self):
         self.move_counter += 1
         return self.move_counter - 1
-    
+    def get_pos(self):
+        return self.x(), self.y()
+
     # Print the features of the sample
     def print_features(self):
         for key, value in self.__dict__.items():

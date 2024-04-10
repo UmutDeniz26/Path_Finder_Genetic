@@ -32,6 +32,7 @@ class Genetic_Algorithm:
         load_flag: bool = True,
         exit_reached_flag: bool = False,
         not_learning_flag: bool = False,
+        hybrid_flag: bool = False,
         constant_learning_parameter_flag: bool = False,
         GPU_board_flag: bool = False,
         timer: object = None
@@ -51,6 +52,7 @@ class Genetic_Algorithm:
             load_flag (bool, optional): Flag indicating whether to load data (default: True).
             exit_reached_flag (bool, optional): Flag indicating whether to exit when reaching a certain score (default: False).
             not_learning_flag (bool, optional): Flag indicating whether the model is not learning (default: False).
+            hybrid_flag (bool, optional): Flag indicating whether the model is hybrid (default: False).
             constant_learning_parameter_flag (bool, optional): Flag indicating whether the learning parameters are constant (default: False).
             GPU_board_flag (bool, optional): Flag indicating whether the board is a GPU board (default: False).
             timer (object, optional): Timer object for tracking execution time (default: None).
@@ -95,18 +97,22 @@ class Genetic_Algorithm:
 
         # No change limit controls the change_parameters function
         # Refresh rate is the time to reset the samples
-        self.no_change_limit = int((200 / self.population_size) * 40) + 5
+        self.no_change_limit = int(10000 / self.population_size) + 5
 
         # Initialize lists and flags
         self.evulation_results = []
+        self.average_controls = []
         self.population = []
         self.best_control = []
         self.dataframe_path = dataframe_path
         self.save_flag = save_flag
+        self.hybrid_flag = hybrid_flag
         self.not_learning_flag = not_learning_flag
         self.exit_reached_flag = exit_reached_flag
         self.constant_learning_parameter_flag = constant_learning_parameter_flag
-        self.GPU_board_flag = GPU_board_flag
+
+        # If hybrid flag is set, the model will be run in GPU_enabled mode
+        self.GPU_board_flag = True if self.hybrid_flag else GPU_board_flag
 
         # Load dataframe if path exists and load_flag is True
         if os.path.exists(dataframe_path) and load_flag:
@@ -168,26 +174,37 @@ class Genetic_Algorithm:
             color = self.board.get_color(x, y)
             self.handle_status(sample, color)
 
+    def calculate_average_controls(self):
+        self.average_controls = [ 
+            np.mean(
+                [result["controls"][i] for result in self.evulation_results if i < len(result["controls"])]
+            ) for i in range(int(self.refresh_rate))
+        ]
+        self.average_controls = [int(angle) for angle in self.average_controls if angle < 720]
+        return self.average_controls
+
     # It creates the new generation's samples
     def create_new_generation_samples(self):
-        for index,_ in enumerate(self.population):
-            # Get mutated angles which is created by the evulation_results dict
+            
+        for index,samp in enumerate(self.population):
+            
             self.population[index].set_controls(
                 assign_mode="copy",
-                external_controls = self.mutation( 
-                    len( self.population[index].controls ) ) if self.not_learning_flag == False else self.best_control
+                external_controls = self.mutation( )
             )
             self.population[index].set_status("Alive")
             
-    def mutation(self,angles_len):
+    def mutation(self):
         self.timer.start_new_timer("Mutation Timer") if self.timer is not None else None
         
-        # If there is no result, return an empty list
-        if angles_len == 0:
+        if len(self.average_controls) == 0:
             return []
         
+        # The angles will be the average of the best angles
+        #angles = self.calculate_average_controls()
+
         #random_indicies = np.random.choice(self.select_per_epoch, angles_len)
-        random_indices = np.random.randint(0, self.select_per_epoch, angles_len)
+        random_indices = np.random.randint(0, self.select_per_epoch, int(self.refresh_rate) )
 
         angles = []
         for j, i in enumerate(random_indices):
@@ -195,11 +212,20 @@ class Genetic_Algorithm:
                 break
             angles.append(self.evulation_results[i]["controls"][j])
 
+
+        mutation_limit = 0 if np.random.uniform(0, 1) < 0.1 else\
+                np.random.randint( 0, len(angles) )
+        
         # If the model is not learning, the angles will be the best angles
         angles = self.evulation_results[0]["controls"] if self.not_learning_flag else angles
 
         # %mutation_rate of the angles will be mutated    
-        mask_enable_filter = np.random.uniform(0, 1, len(angles)) < self.mutation_rate
+        if mutation_limit:
+            mask_enable_filter = np.concatenate(
+                    (np.zeros(mutation_limit), np.ones( len(angles) - mutation_limit ))
+                )
+        else:
+            mask_enable_filter = np.random.uniform(0, 1, len(angles)) < self.mutation_rate
 
         # The mask will be multiplied by the angles and then by the learning rate
         mask_coefficients = np.random.uniform(-self.learning_rate,self.learning_rate,len(angles))
@@ -236,7 +262,6 @@ class Genetic_Algorithm:
                 )
             
             return_data["sample"].set_status(color)
-            
             self.add_result_dict(
                 sample=return_data["sample"],
                 status=color
@@ -323,6 +348,10 @@ class Genetic_Algorithm:
                 add_dict.update({key: value})
             self.evulation_results.append(add_dict)
         elif sample is not None and status is not None:
+            # if there is a result with same score, then continue
+            if len(self.evulation_results) > 0 and self.evulation_results[0]["score"] == sample.get_score():
+                return
+
             self.evulation_results.append({
                 "controls": sample.get_controls(),
                 "score": sample.get_score(),
@@ -340,32 +369,36 @@ class Genetic_Algorithm:
 
     def change_parameters(self, learning_rate, mutation_rate):
         self.no_change_counter = 0
+
+        if self.evulation_results[0]["score"] > 1000:
+            self.mutation_rate_sign = -1
+        else:
+            self.mutation_rate_sign = 1
+
         if learning_rate is not None:
-            learning_rate = learning_rate + learning_rate * 0.2
+            learning_rate = learning_rate + 0.1
             self.learning_rate = learning_rate
 
         if mutation_rate is not None:
-            mutation_rate = mutation_rate + mutation_rate * 0.2 * self.mutation_rate_sign
+            mutation_rate = mutation_rate + 0.1 * self.mutation_rate_sign
             self.mutation_rate = mutation_rate
 
-        if (mutation_rate > 0.80 and self.mutation_rate_sign == 1) or\
-            (mutation_rate < 0.01 and self.mutation_rate_sign == -1):
-    
+        if (mutation_rate > 0.90 and self.mutation_rate_sign == 1) or\
+            (mutation_rate < 0.001 and self.mutation_rate_sign == -1):
             self.mutation_rate = self.mutation_rate_original 
-            self.mutation_rate_sign *= -1
-
-        if learning_rate > 0.80:
+            
+        if learning_rate > 0.90:
             self.learning_rate = self.learning_rate_original
 
     # It kills the sample and returns the control history and the final score of the sample    
     def reset_samples(self):
         for sample in self.get_living_samples():
             final_result = sample.kill_sample_get_score()
-            final_result["sample"].set_status("Reset")
+            final_result["sample"].set_status("Reset")         
             self.add_result_dict(sample=final_result["sample"], status="Reset")
 
     def assign_board_attributes(self, board):
-        self.refresh_rate = ( 4 * board.distance_between_start_and_end / self.sample_speed )
+        self.refresh_rate = ( 6 * board.distance_between_start_and_end / self.sample_speed )
         self.board_width, self.board_height = board.board_width, board.board_height
         self.max_move_count = self.board_width * 10 // self.sample_speed
         self.board_size = (self.board_width, self.board_height)
@@ -393,9 +426,9 @@ class Genetic_Algorithm:
             ) / len(self.evulation_results)
         print(f"""
         STATISTICS:
-            BEST SCORE        : {self.evulation_results[0]["score"]:15.10f} | MOVE COUNT OF BEST: {move_count_of_best:7.3f} 
-            NUMBER OF RESULTS : {len(self.evulation_results):15.0f} | AVERAGE SCORE     : {self.calculate_average_score():7.3f}
-            RATIO OF SUCCESS  : {ratio_success:15.11f}
+            BEST SCORE        : {self.evulation_results[0]["score"]:15.10f} | MOVE COUNT OF BEST  : {move_count_of_best:7.3f} 
+            NUMBER OF RESULTS : {len(self.evulation_results):15.0f} | AVERAGE SCORE       : {self.calculate_average_score():15.11f}
+            RATIO OF SUCCESS  : {ratio_success:15.11f} | 
         """)
         
     def print_epoch_info(self):

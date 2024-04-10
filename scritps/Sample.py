@@ -25,10 +25,6 @@ class Sample:
         self.sine_values =\
             np.multiply( np.array([math.sin(math.radians(angle)) for angle in range(360)]), self.speed ).astype(int)
 
-        # Store as dictionary data structure to increase the speed of accessing the cosine and sine values
-        # self.cosine_values_dict = {angle: value for angle, value in enumerate(self.cosine_values)}
-        # self.sine_values_dict = {angle: value for angle, value in enumerate(self.sine_values)}
-
         # End point
         self.target_point = (self.board_width, self.board_height // 2)
         
@@ -78,10 +74,10 @@ class Sample:
         return self.get_pos()
     
     def calculate_fitness(self):
-        # Calculate the distance between the sample and the target point
+        # Calculate the distance between the sample and the end point
         distance = np.linalg.norm(np.array(self.get_pos()) - np.array(self.target_point))
         return 1 / distance if distance != 0 else 1
-
+    
     # Return the control history and the final score of the sample
     def kill_sample_get_score(self):
         # Set the final move count and reset the move counter
