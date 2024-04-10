@@ -83,8 +83,7 @@ def main():
                     timer.update_timers()
                 
                 timer.reset_timer("with-GPU")
-                board_GPU.show();app.exec_()
-                
+                board_GPU.show();app.exec_()   
         else:
             while True:
                 board.update_samples()

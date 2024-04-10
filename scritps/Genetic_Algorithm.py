@@ -158,15 +158,18 @@ class Genetic_Algorithm:
         if self.timer is not None:
             self.timer.stop_timer("Progress_to_next_epoch")
             self.timer.print_timers()
-            #self.timer.print_ratio("New Generation Timer", "Progress_to_next_epoch")
             self.timer.print_ratio("Progress_to_next_epoch", "Main Loop Timer")
             self.timer.print_ratio("Update Living Samples", "Main Loop Timer")
-
+            self.timer.print_ratio("update part", "Update Living Samples")
+        
     def update_living_samples(self):
         for sample in self.get_living_samples():
-            new_x, new_y = sample.move()
-            new_position_color = self.board.get_color((new_x, new_y))
-            self.handle_status(sample, new_position_color)
+            x, y = sample.move()
+            self.timer.start_new_timer("update part") if self.timer is not None else None
+            color = self.board.get_color(x, y)
+            self.timer.stop_timer("update part") if self.timer is not None else None
+            self.handle_status(sample, color)
+
     # It creates the new generation's samples
     def create_new_generation_samples(self):
         for index,_ in enumerate(self.population):
@@ -203,7 +206,7 @@ class Genetic_Algorithm:
         mask_coefficients = np.random.uniform(-self.learning_rate,self.learning_rate,len(angles))
 
         # The angles are mutated
-        mutated_angles = ( angles + angles * ( mask_coefficients * mask_enable_filter ) ).astype(int)
+        mutated_angles = np.mod(angles + angles * (mask_coefficients * mask_enable_filter), 360).astype(int)
 
         self.timer.stop_timer("Mutation Timer") if self.timer is not None else None
         return mutated_angles

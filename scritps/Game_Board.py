@@ -95,8 +95,7 @@ class Game_Board(QGraphicsView):
         for sample in population[:self.model.select_per_epoch]:
             self.scene().addItem(sample)
     
-    def get_color(self, position):
-        x, y = position
+    def get_color(self, x, y):        
         if x < 0 or x >= self.board_width or y < 0 or y >= self.board_height:
             return "Out of bounds"
 

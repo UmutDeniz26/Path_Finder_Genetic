@@ -15,6 +15,7 @@ class Game_Board():
         # Essential attributes
         self.board_width, self.board_height = board_size
         self.board_size = board_size
+        self.pixel_padding = 4
 
         # 0 -> Empty, 1 -> Obstacle, 2 -> Start, 3 -> End
         self.board = np.zeros(shape=(self.board_width, self.board_height), dtype=np.uint8)
@@ -36,30 +37,35 @@ class Game_Board():
         self.model.board = self
         self.model.assign_board_attributes( self )
 
+                # Pre-calculate the padding for the board
+        self.board_padding = np.copy(self.board)
+        for i in range(self.board_padding.shape[0]):
+            for j in range(self.board_padding.shape[1]):
+                self.board_padding[i, j] = self.board[
+                    max(i - self.pixel_padding, 0):min(i + self.pixel_padding, self.board_width),
+                    max(j - self.pixel_padding, 0):min(j + self.pixel_padding, self.board_height)
+                ].max()
+
         logging.info("Game Board is initialized correctly")
         
     # To run the model, execute the main loop
     def update_samples(self):      
         self.model.main_loop()
         
-    def get_color(self, position):
-        x, y = position
+    def get_color(self, x, y):
         if x < 0 or x >= self.board_width or y < 0 or y >= self.board_height:
             return "Out of bounds"
-        else:
-            # select mxm square
-            m = 4
-            val = self.board[
-                max(x - m, 0):min(x + m, self.board_width),
-                max(y - m, 0):min(y + m, self.board_height)
-            ].max() 
+        
+        val = self.board_padding[x, y]
 
-            if val == 1: # Black
-                return "#000000"
-            elif val == 3: # Green
-                return "#00ff00"
-            else:
-                return None
+        if val == 0: # White
+            return None
+        elif val == 1: # Black
+            return "#000000"
+        elif val == 3: # Green
+            return "#00ff00"
+        
+        raise ValueError("Unknown color value")
 
     # Inıtialize the screen (obstacles etc.)
     def draw_obstacles(self):

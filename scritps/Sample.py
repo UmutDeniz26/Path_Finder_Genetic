@@ -4,8 +4,6 @@ import numpy as np
 
 id_counter = 0
 
-cosine_values = np.array([math.cos(math.radians(angle)) for angle in range(360)])
-sine_values = np.array([math.sin(math.radians(angle)) for angle in range(360)])
 
 class Sample:
     def __init__(self, board_size, speed=20, external_controls=[]):
@@ -20,6 +18,17 @@ class Sample:
         self.move_counter = 0
         self.final_move_count = 0
 
+
+        # Precalculate the cosine and sine values for each angle
+        self.cosine_values =\
+            np.multiply( np.array([math.cos(math.radians(angle)) for angle in range(360)]), self.speed ).astype(int)
+        self.sine_values =\
+            np.multiply( np.array([math.sin(math.radians(angle)) for angle in range(360)]), self.speed ).astype(int)
+
+        # Store as dictionary data structure to increase the speed of accessing the cosine and sine values
+        # self.cosine_values_dict = {angle: value for angle, value in enumerate(self.cosine_values)}
+        # self.sine_values_dict = {angle: value for angle, value in enumerate(self.sine_values)}
+
         # End point
         self.target_point = (self.board_width, self.board_height // 2)
         
@@ -33,38 +42,39 @@ class Sample:
 
     def set_controls(self, assign_mode="rand", external_controls=[], control_count=100):
             
-            # Reset the position of the sample
-            self.positon = self.spawn_point
-            self.move_counter = 0
-            self.set_score(0)
+        # Reset the position of the sample
+        self.positon = self.spawn_point
+        self.move_counter = 0
+        self.set_score(0)
 
-            if len(external_controls) != 0 or assign_mode == "copy":
-                self.controls = external_controls
+        if len(external_controls) != 0 or assign_mode == "copy":
+            self.controls = external_controls
+        else:
+            if assign_mode == "rand":
+                self.controls = [random.uniform(0, 360) for i in range(control_count)]
+            elif assign_mode == "zero":
+                self.controls = [0 for i in range(control_count)]
+            elif assign_mode == "empty":
+                self.controls = []
             else:
-                if assign_mode == "rand":
-                    self.controls = [random.uniform(0, 360) for i in range(control_count)]
-                elif assign_mode == "zero":
-                    self.controls = [0 for i in range(control_count)]
-                elif assign_mode == "empty":
-                    self.controls = []
-                else:
-                    raise ValueError("Unknown assign_mode")
+                raise ValueError("Unknown assign_mode")
                 
 
     def move(self):
         # Get the angle of the next move
         while self.move_counter >= len(self.controls):
             self.controls = np.append(self.controls, random.uniform(0, 360))
-        angle = self.controls[self.get_and_increase_move_counter()]
+        angle = int( self.controls[self.get_and_increase_move_counter()] )
 
         x, y = self.get_pos()
 
         # Update the position
+        # old -> self.set_pos((int(x + self.speed * np.cos(np.radians(angle))),int(y + self.speed * np.sin(np.radians(angle)))))
         self.set_pos((
-            int(x + self.speed * math.cos(math.radians(angle))),
-            int(y + self.speed * math.sin(math.radians(angle)))
+            x + self.cosine_values[angle], # These cosine and sine values are precalculated
+            y + self.sine_values[angle]    # While calculating, its values are multiplied by the speed!!!
         ))
-
+        
         return self.get_pos()
     
     def calculate_fitness(self):
