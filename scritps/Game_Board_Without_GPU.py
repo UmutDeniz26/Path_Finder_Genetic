@@ -24,7 +24,7 @@ class Game_Board():
         self.obstacles = obstacles; self.population = []
         
         # Draw essential objects
-        self.draw_end_point()
+        self.draw_end_point(self.board)
         self.draw_obstacles()
 
         # Initialize the end points and create the first generation
@@ -38,16 +38,31 @@ class Game_Board():
         self.model.assign_board_attributes( self )
 
         # Pre-calculate the padding for the board
-        self.board_padding = np.copy(self.board)
+        
+        # replace 3's with 0's, 2 dimensional array
+        self.board_padding = np.copy( np.where(self.board == 3, 0, self.board) ) 
         for i in range(self.board_padding.shape[0]):
             for j in range(self.board_padding.shape[1]):
-                self.board_padding[i, j] = self.board[
+                val = self.board[
                     max(i - self.pixel_padding, 0):min(i + self.pixel_padding, self.board_width),
                     max(j - self.pixel_padding, 0):min(j + self.pixel_padding, self.board_height)
-                ].max()
+                ]
+                if 1 in val:
+                    self.board_padding[i, j] = 1
 
+        self.draw_end_point(self.board_padding)
+        self.save_board_as_image("log/board_padding.png", self.board_padding)
+        self.save_board_as_image("log/board.png", self.board)
+        
+                    
         logging.info("Game Board is initialized correctly")
         
+    def save_board_as_image(self, path, board):
+        import matplotlib.pyplot as plt
+        plt.imshow(board)
+        plt.savefig(path)
+        plt.close()
+    
     # To run the model, execute the main loop
     def update_samples(self):      
         self.model.main_loop()
@@ -79,12 +94,14 @@ class Game_Board():
                 obstacle["y"]:obstacle["y"]+obstacle["height"]
             ] = 1 # 1 means obstacle
             
-    def draw_end_point(self):
+    def draw_end_point(self, board):
         self.base_size = (self.board_width // 20, self.board_height // 20)
         self.end_point = (self.board_width - self.board_width // 20, self.board_height // 2)
 
-        self.board[self.end_point[0] - self.base_size[0] // 2:self.end_point[0] + self.base_size[0] // 2,
-                   self.end_point[1] - self.base_size[1] // 2:self.end_point[1] + self.base_size[1] // 2] = 3
+        board[self.end_point[0] - self.base_size[0] // 2:self.end_point[0] + self.base_size[0] // 2,
+                self.end_point[1] - self.base_size[1] // 2:self.end_point[1] + self.base_size[1] // 2] = 3
+        
+        return board
 
 if __name__ == "__main__":
     pass
